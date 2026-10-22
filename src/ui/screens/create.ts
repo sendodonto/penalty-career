@@ -1,6 +1,7 @@
 import { sfx } from '../../game/audio';
 import { BOOT_COLORS, HAIR_COLORS, HAIR_STYLES, SKIN_ORDER, SKIN_TONES } from '../../game/data/appearance';
-import { getClub, LEAGUE_NAMES, NATIONALITIES, STARTING_CLUB_ID } from '../../game/data/clubs';
+import { getClub, getLeague, STARTING_CLUB_ID } from '../../game/data/clubs';
+import { NATIONALITIES } from '../../game/data/nations';
 import { clubKit, figureMarkup, type View } from '../../game/entities/figureArt';
 import { seeded } from '../../game/rng';
 import { ATTR_KEYS, ATTR_LABELS, createCareer, overall, PLAYING_STYLES, STYLE_BONUS } from '../../game/systems/Career';
@@ -128,8 +129,8 @@ function firstClub(app: App): HTMLElement {
   const view = el(`<section class="screen narrow enter">
     <div class="panel signing">
       <p class="kicker-line">Primeiro contrato profissional</p>
-      <div class="signing-club">${badge(club, 96)}<div><h1>${esc(club.name)}</h1><p>${esc(club.city)} · ${LEAGUE_NAMES[club.tier]}</p></div></div>
-      <p>O ${esc(club.name)} é um clube modesto, mas aposta em você como cobrador oficial. Converta pênaltis, cumpra os objetivos e chame a atenção dos grandes.</p>
+      <div class="signing-club">${badge(club, 96)}<div><h1>${esc(club.name)}</h1><p>${esc(club.city)} · ${esc(getLeague(club.league).name)}</p></div></div>
+      <p>O ${esc(club.name)} disputa a Série B e aposta em você como cobrador oficial. Converta pênaltis, conquiste o acesso, as copas e chame a atenção dos gigantes da Europa e da seleção.</p>
       <div class="signing-player">${avatar(c.identity.appearance, club, c.identity.number, 110)}
         <div class="grow"><h2>${esc(c.identity.name)} <small>OVR ${overall(c.attributes)}${style ? ` · ${style}` : ''}</small></h2>
         ${ATTR_KEYS.map((k) => `<div class="attr-mini"><span>${ATTR_LABELS[k]}</span>${bar(c.attributes[k])}<b>${c.attributes[k]}</b></div>`).join('')}</div>

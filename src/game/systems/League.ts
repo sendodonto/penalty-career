@@ -1,4 +1,4 @@
-import type { Club, Rng, Standing } from '../types';
+import type { Rng, Standing, Team } from '../types';
 import { keeperFromRating, simulateKick } from './PenaltyResolver';
 import { Shootout } from './Shootout';
 
@@ -36,7 +36,7 @@ export const sortStandings = (table: Standing[]): Standing[] =>
   [...table].sort((x, y) => y.pts - x.pts || (y.scored - y.conceded) - (x.scored - x.conceded) || y.scored - x.scored);
 
 /** Disputa completa entre dois clubes simulados, com as mesmas regras de cobrança. */
-export function simulateShootout(home: Club, away: Club, rng: Rng): [number, number] {
+export function simulateShootout(home: Team, away: Team, rng: Rng): [number, number] {
   const s = new Shootout();
   while (!s.winner()) {
     const [shooter, keeper] = s.next === 'a' ? [home, away] : [away, home];

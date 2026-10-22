@@ -1,7 +1,6 @@
 import { sfx } from '../../game/audio';
-import { getClub } from '../../game/data/clubs';
 import { IS_TOUCH } from '../../game/device';
-import { ATTR_KEYS, ATTR_LABELS, leagueName, matchSetup, nextFixture } from '../../game/systems/Career';
+import { ATTR_KEYS, ATTR_LABELS, matchSetup, nextFixture } from '../../game/systems/Career';
 import type { App } from '../app';
 import { badge, bar, esc } from '../components';
 import { el } from './dom';
@@ -13,12 +12,12 @@ export function renderPrep(app: App): HTMLElement {
     queueMicrotask(() => app.go('dashboard'));
     return el('<section class="screen"></section>');
   }
-  const club = getClub(c.clubId);
+  const club = f.team;
   const setup = matchSetup(c, f);
   const view = el(`<section class="screen narrow prep">
     <header class="topbar"><button class="btn ghost" data-a="back">Voltar ao painel</button><h1>Preparação</h1></header>
     <div class="panel prep-head" style="--home:${club.primary};--away:${f.opponent.primary}">
-      <p class="kicker-line">${esc(leagueName(c))} · Rodada ${f.round + 1}</p>
+      <p class="kicker-line">${esc(f.comp.name)} · ${esc(f.stage)}${f.comp.kind === 'national' ? ' · Seleção' : ''}</p>
       <div class="prep-teams">
         <div>${badge(club, 88)}<b>${esc(club.name)}</b></div>
         <span class="vs">x</span>
@@ -28,7 +27,7 @@ export function renderPrep(app: App): HTMLElement {
     </div>
     <div class="prep-grid">
       <div class="panel">
-        <h2>Objetivo do clube</h2>
+        <h2>Objetivo</h2>
         <p class="objective-big">${esc(f.objective.text)}</p>
         <h2>Adversário</h2>
         <div class="attr-mini"><span>Goleiro</span>${bar(setup.oppKeeper.read * 100)}<b>${Math.round(setup.oppKeeper.read * 100)}</b></div>

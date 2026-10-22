@@ -15,6 +15,14 @@ npm test           # testes unitários (regras da disputa, cobrança, carreira, 
 npm run smoke      # teste E2E no Microsoft Edge instalado (BROWSER=chrome para usar o Chrome)
 ```
 
+## Carreira
+
+- 72 clubes reais em 9 ligas (Brasileirão Séries A e B, Argentina, Portugal, França, Alemanha, Itália, Espanha e Inglaterra), com escudos desenhados pelo jogo a partir das cores dos clubes.
+- Cada temporada: liga (8 clubes, turno único), copa nacional (mata-mata) e, para quem termina entre os 2 primeiros ou vence a copa, Libertadores ou Liga dos Campeões. Acesso e rebaixamento entre as Séries A e B.
+- Seleção: Copa do Mundo a cada 4 temporadas (grupos + mata-mata) e Copa América/Eurocopa no meio do ciclo, só com convocação (overall 60 ou reputação 45).
+- Janela de transferências ao fim da temporada: propostas com salário por jogo e duração do contrato, ou renovação.
+- Salvamento versionado (v2); carreiras da v1 são migradas automaticamente.
+
 ## Jogar no celular
 
 ```bash

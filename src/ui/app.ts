@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { isMuted, setMuted, sfx } from '../game/audio';
 import { PenaltyScene, type Hud, type PenaltySceneData } from '../game/scenes/PenaltyScene';
 import { CLUBS, getClub } from '../game/data/clubs';
-import { applyMatch, matchSetup, nextFixture, type Rewards } from '../game/systems/Career';
+import { applyMatch, matchSetup, nextFixture, type Fixture, type Rewards } from '../game/systems/Career';
 import { Match } from '../game/systems/MatchManager';
 import { keeperFromRating } from '../game/systems/PenaltyResolver';
 import { loadCareer, saveCareer, saveSettings, type LoadResult } from '../game/systems/SaveManager';
@@ -18,7 +18,8 @@ import { renderSettings } from './screens/settings';
 
 export type ScreenName = 'menu' | 'create' | 'dashboard' | 'prep' | 'result' | 'settings';
 
-export interface LastResult { stats: MatchStats; rewards: Rewards; opponentId: string; career: Career }
+/** Resultado da última partida para a tela de resultado (time do jogador: clube ou seleção). */
+export interface LastResult { stats: MatchStats; rewards: Rewards; teamId: string; opponentId: string; comp: string; stage: string; career: Career }
 
 export class App {
   career: Career | null = null;
@@ -94,7 +95,7 @@ export class App {
       match,
       player: { name: c.identity.name, number: c.identity.number, appearance: c.identity.appearance },
       hud: this.hud(),
-      onFinish: (stats) => this.finishMatch(stats, fixture.opponent.id),
+      onFinish: (stats) => this.finishMatch(stats, fixture),
     };
     this.runScene(data, false);
   }
@@ -143,11 +144,11 @@ export class App {
     }
   }
 
-  private finishMatch(stats: MatchStats, opponentId: string): void {
+  private finishMatch(stats: MatchStats, f: Fixture): void {
     this.game?.scene.stop('penalty');
     const { career, rewards } = applyMatch(this.career!, stats);
     this.commit(career);
-    this.lastResult = { stats, rewards, opponentId, career };
+    this.lastResult = { stats, rewards, teamId: f.team.id, opponentId: f.opponent.id, comp: f.comp.name, stage: f.stage, career };
     sfx.transition();
     this.go('result');
   }

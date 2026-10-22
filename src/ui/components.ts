@@ -1,6 +1,6 @@
 import { clubKit, figureMarkup, type Kit } from '../game/entities/figureArt';
 import { sfx } from '../game/audio';
-import type { Appearance, Club } from '../game/types';
+import type { Appearance, Team } from '../game/types';
 
 export const esc = (s: string) =>
   s.replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]!);
@@ -8,7 +8,7 @@ export const esc = (s: string) =>
 export const money = (n: number) => `$ ${n.toLocaleString('pt-BR')}`;
 
 /** Escudo do clube desenhado em SVG a partir das cores. */
-export function badge(club: Club, size = 48): string {
+export function badge(club: Team, size = 48): string {
   return `<svg class="badge" width="${size}" height="${size * 1.15}" viewBox="0 0 40 46" aria-label="${esc(club.name)}" role="img">
     <clipPath id="shield-${club.id}"><path d="M20 1 L38 6 V22 C38 34 30 41 20 45 C10 41 2 34 2 22 V6 Z"/></clipPath>
     <path d="M20 1 L38 6 V22 C38 34 30 41 20 45 C10 41 2 34 2 22 V6 Z" fill="${club.primary}"/>
@@ -22,7 +22,7 @@ export function badge(club: Club, size = 48): string {
 export const NEUTRAL_KIT: Kit = { shirt: '#3a4656', trim: '#e8e2d0', shorts: '#e8e2d0', socks: '#3a4656' };
 
 /** Retrato do jogador (busto de frente) com a mesma arte usada na partida. */
-export function avatar(look: Appearance, club: Club | null, number: number, size = 120): string {
+export function avatar(look: Appearance, club: Team | null, number: number, size = 120): string {
   const kit = club ? clubKit(club) : NEUTRAL_KIT;
   return `<svg class="avatar" width="${size}" height="${size}" viewBox="-26 -136 52 52" role="img" aria-label="Retrato do jogador">
     <rect x="-26" y="-136" width="52" height="52" fill="#1b2430"/>

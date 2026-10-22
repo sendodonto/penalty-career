@@ -8,7 +8,7 @@ import { GOAL, SPOT, Stadium, toScreen } from '../entities/Stadium';
 import { REACTION } from '../systems/GoalkeeperAI';
 import type { Match } from '../systems/MatchManager';
 import { frameResult, gradeTiming, meterPosition, ZONE_NAMES, ZONE_TARGETS } from '../systems/PenaltyResolver';
-import type { Appearance, Club, DefendedKick, GoalPoint, Grade, KickOutcome, MatchStats, MeterParams, Reaction, Side, Zone } from '../types';
+import type { Appearance, DefendedKick, GoalPoint, Grade, KickOutcome, MatchStats, MeterParams, Reaction, Side, Team, Zone } from '../types';
 
 export interface Hud {
   update(match: Match): void;
@@ -70,7 +70,7 @@ const DEFENSE_ACCENT = 0x5bd8ff;
 const COL_W = (GOAL.halfW * 2) / 3;
 const GOAL_LEFT = GOAL.cx - GOAL.halfW;
 
-const keeperKit = (club: Club): Kit => {
+const keeperKit = (club: Team): Kit => {
   const color = KEEPER_KITS[[...club.id].reduce((n, ch) => n + ch.charCodeAt(0), 0) % KEEPER_KITS.length];
   return { shirt: color, trim: '#111111', shorts: '#1d1d1f', socks: color };
 };

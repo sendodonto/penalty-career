@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { MatchStats, PlayerIdentity, Zone } from '../types';
-import { applyMatch, createCareer, matchSetup, nextFixture, seasonOver, spendSkillPoint, startNextSeason, train, trainingCost, xpForLevel } from './Career';
+import { applyMatch, createCareer, matchSetup, nextFixture, seasonOver, spendSkillPoint, startNextSeason, train, trainingCost } from './Career';
+import { alive, fixtureFor, groupsComp, knockoutComp, maxMatches, playRound, simulateRest, stageLabel } from './Competition';
 import { roundRobin } from './League';
 import { Match } from './MatchManager';
 import { gradeReaction, reactionReach } from './GoalkeeperAI';
 import { defendStrike, gradeTiming, keeperFromRating, meterPosition, opponentStrike, resolveShot } from './PenaltyResolver';
-import { loadCareer, saveCareer } from './SaveManager';
+import { loadCareer, saveCareer, validateCareer } from './SaveManager';
 import { Shootout } from './Shootout';
 import { seeded } from '../rng';
 
@@ -172,12 +173,57 @@ describe('Goleiro do usuário', () => {
   });
 });
 
+describe('Competições', () => {
+  const sim = (h: string, a: string): [number, number] => (h < a ? [4, 3] : [3, 4]);
+
+  it('turno único: todos se enfrentam exatamente uma vez', () => {
+    const ids = ['a', 'b', 'c', 'd', 'e', 'f'];
+    const seen = new Set(roundRobin(ids).flat().map((p) => [...p].sort().join('-')));
+    expect(seen.size).toBe(15);
+  });
+
+  it('mata-mata elimina, marca a fase da queda e coroa um campeão', () => {
+    const c = knockoutComp('cup', 'cup', 'Copa', ['me', 'b', 'c', 'd', 'e', 'f', 'g', 'h']);
+    expect(stageLabel(c)).toBe('Quartas de final');
+    expect(fixtureFor(c, 'me')).toEqual({ opponent: 'b', home: true });
+    playRound(c, 'me', [5, 4], sim);
+    expect(stageLabel(c)).toBe('Semifinal');
+    playRound(c, 'me', [2, 4], sim);
+    expect(alive(c, 'me')).toBe(false);
+    expect(c.exit).toBe('Semifinal');
+    simulateRest(c, sim);
+    expect(c.champion).not.toBeNull();
+  });
+
+  it('grupos viram mata-mata com os dois primeiros de cada grupo', () => {
+    const groups = [0, 1, 2, 3].map((g) => [0, 1, 2, 3].map((i) => `t${g}${i}`));
+    const c = groupsComp('wc', 'national', 'Copa do Mundo', groups);
+    expect(maxMatches(c)).toBe(6);
+    for (let r = 0; r < 3; r++) playRound(c, null, null, sim);
+    expect(c.format).toBe('knockout');
+    expect(c.bracket).toHaveLength(8);
+    expect(new Set(c.bracket).size).toBe(8);
+    simulateRest(c, sim);
+    expect(c.bracket).toHaveLength(1);
+  });
+});
+
 describe('Career', () => {
-  it('cria carreira com atributos modestos e calendário', () => {
+  const win: MatchStats = {
+    won: true, scoreFor: 4, scoreAgainst: 2, goals: 4, kicks: 5, decisiveGoals: 1,
+    perfects: 1, topCornerGoals: 1, saves: 0, objectiveMet: true, userKicks: [],
+  };
+  const loss: MatchStats = { ...win, won: false, scoreFor: 2, scoreAgainst: 4, goals: 2, decisiveGoals: 0, objectiveMet: false };
+
+  it('começa na Série B com liga e copa nacional intercaladas', () => {
     const c = createCareer(identity, seeded(1));
     expect(Object.values(c.attributes).every((v) => v >= 38 && v <= 45)).toBe(true);
-    expect(c.schedule).toHaveLength(5);
-    expect(nextFixture(c)).not.toBeNull();
+    expect(c.clubId).toBe('ituano');
+    expect(c.comps.map((x) => x.name)).toEqual(['Brasileirão Série B', 'Copa do Brasil']);
+    expect(c.calendar.filter((id) => id === 'league')).toHaveLength(7);
+    expect(c.calendar.filter((id) => id === 'cup')).toHaveLength(3);
+    expect(c.calendar[0]).toBe('league');
+    expect(nextFixture(c)?.comp.name).toBe('Brasileirão Série B');
   });
 
   it('o estilo de cobrança soma o bônus só no atributo escolhido', () => {
@@ -187,29 +233,74 @@ describe('Career', () => {
     expect(bomb.precision).toBe(plain.precision);
   });
 
-  it('turno único: todos se enfrentam exatamente uma vez', () => {
-    const ids = ['a', 'b', 'c', 'd', 'e', 'f'];
-    const seen = new Set(roundRobin(ids).flat().map((p) => [...p].sort().join('-')));
-    expect(seen.size).toBe(15);
-  });
-
-  const win: MatchStats = {
-    won: true, scoreFor: 4, scoreAgainst: 2, goals: 4, kicks: 5, decisiveGoals: 1,
-    perfects: 1, topCornerGoals: 1, saves: 0, objectiveMet: true, userKicks: [],
-  };
-
-  it('aplica recompensas, sobe de nível e concede pontos', () => {
+  it('aplica recompensas pelo salário, sobe de nível e concede pontos', () => {
     const c0 = createCareer(identity, seeded(1));
     const { career, rewards } = applyMatch(c0, win, seeded(2));
     expect(rewards.xp).toBe(20 + 40 + 15 + 30 + 40);
+    expect(rewards.money).toBe(Math.round(c0.contract.salary * (1 + 0.5 + 0.4 + 0.5)));
     expect(career.money).toBe(c0.money + rewards.money);
     expect(career.level).toBe(2);
     expect(career.skillPoints).toBe(3);
-    expect(career.xp).toBe(rewards.xp - xpForLevel(1));
-    expect(career.round).toBe(1);
-    expect(career.history[0].won).toBe(true);
-    expect(career.standings.reduce((n, s) => n + s.played, 0)).toBe(6);
-    expect(c0.round).toBe(0); // original intacto
+    expect(career.calendar).toHaveLength(c0.calendar.length - 1);
+    expect(career.history[0]).toMatchObject({ comp: 'Brasileirão Série B', won: true });
+    expect(career.comps[0].standings.reduce((n, s) => n + s.played, 0)).toBe(8);
+    expect(c0.calendar).toHaveLength(10); // original intacto
+  });
+
+  it('eliminado na copa: os jogos restantes dela saem do calendário', () => {
+    let c = createCareer(identity, seeded(1));
+    const rng = seeded(3);
+    while (c.calendar[0] !== 'cup') c = applyMatch(c, win, rng).career;
+    c = applyMatch(c, loss, rng).career;
+    expect(c.calendar.includes('cup')).toBe(false);
+    expect(c.comps.find((x) => x.id === 'cup')!.exit).toBe('Quartas de final');
+  });
+
+  it('temporada perfeita: títulos, acesso, vaga continental e propostas', () => {
+    let c = createCareer(identity, seeded(1));
+    const rng = seeded(9);
+    while (!seasonOver(c)) c = applyMatch(c, win, rng).career;
+    expect(c.trophies.map((t) => t.name).sort()).toEqual(['Brasileirão Série B', 'Copa do Brasil']);
+    expect(c.leagueOf.ituano).toBe('br-a');
+    expect(c.continental).toBe(true);
+    expect(c.offers[0].renewal).toBe(true);
+    const stay = startNextSeason(c, undefined, seeded(5));
+    expect(stay.comps.filter((x) => x.kind !== 'national').map((x) => x.name)).toEqual(['Brasileirão Série A', 'Copa do Brasil', 'Copa Libertadores']);
+    expect(stay.comps.find((x) => x.kind === 'national')?.name).toBe('Copa América'); // temporada 2: meio do ciclo
+    expect(stay.calendar.filter((id) => id === 'cont')).toHaveLength(3);
+    expect(stay.season).toBe(2);
+    expect(stay.age).toBe(c.age + 1);
+  });
+
+  it('transferência muda clube, liga e contrato', () => {
+    let c = createCareer(identity, seeded(1));
+    while (!seasonOver(c)) c = applyMatch(c, win, seeded(c.matchesPlayed)).career;
+    const offer = c.offers.find((o) => !o.renewal)!;
+    const next = startNextSeason(c, offer.clubId, seeded(6));
+    expect(next.clubId).toBe(offer.clubId);
+    expect(next.contract.salary).toBe(offer.salary);
+    expect(next.contract.until).toBe(next.season + offer.seasons - 1);
+    expect(next.comps[0].teams).toContain(offer.clubId);
+    expect(() => startNextSeason(c, 'real-madrid')).toThrow();
+  });
+
+  it('Copa do Mundo a cada 4 temporadas, só com convocação', () => {
+    const star = { ...createCareer(identity, seeded(1)), season: 3 };
+    star.attributes = { precision: 80, power: 80, curve: 80, composure: 80 };
+    star.calendar = [];
+    star.offers = [{ clubId: 'ituano', salary: 500, seasons: 2, renewal: true }];
+    const wc = startNextSeason(star, undefined, seeded(2));
+    expect(wc.calledUp).toBe(true);
+    const nat = wc.comps.find((x) => x.kind === 'national')!;
+    expect(nat.name).toBe('Copa do Mundo');
+    expect(nat.teams).toContain('n-brasil');
+    expect(wc.calendar.filter((id) => id === 'nat')).toHaveLength(6);
+    expect(wc.calendar[wc.calendar.length - 1]).toBe('nat');
+
+    const rookie = { ...star, attributes: { precision: 40, power: 40, curve: 40, composure: 40 }, reputation: 5 };
+    const noCall = startNextSeason(rookie, undefined, seeded(2));
+    expect(noCall.calledUp).toBe(false);
+    expect(noCall.calendar.includes('nat')).toBe(false);
   });
 
   it('distribui pontos e treina com dinheiro', () => {
@@ -226,23 +317,14 @@ describe('Career', () => {
     expect(train(broke, 'power')).toBe(broke);
   });
 
-  it('fecha a temporada, gera propostas e inicia a seguinte', () => {
+  it('temporadas inteiras pelo MatchManager sempre terminam e reiniciam', () => {
     let c = createCareer(identity, seeded(1));
-    const rng = seeded(9);
-    while (!seasonOver(c)) c = applyMatch(c, win, rng).career;
-    expect(c.trophies.length).toBe(1); // 5 vitórias = campeão
-    expect(c.offers.length).toBeGreaterThan(0);
-    const next = startNextSeason(c, c.offers[0]);
-    expect(next.clubId).toBe(c.offers[0]);
-    expect(next.age).toBe(c.age + 1);
-    expect(next.round).toBe(0);
-    expect(next.standings.some((s) => s.clubId === next.clubId)).toBe(true);
-  });
-
-  it('partida jogada pelo MatchManager sempre tem vencedor e alimenta a carreira', () => {
-    const c = createCareer(identity, seeded(1));
     const rng = seeded(5);
-    for (let i = 0; i < 50; i++) {
+    for (let guard = 0; guard < 200 && c.season < 5; guard++) {
+      if (seasonOver(c)) {
+        c = startNextSeason(c, c.offers[Math.floor(rng() * c.offers.length)].clubId, rng);
+        continue;
+      }
       const m = new Match(matchSetup(c, nextFixture(c)!), rng);
       while (m.turn !== 'done') {
         if (m.turn === 'user') {
@@ -255,9 +337,10 @@ describe('Career', () => {
       }
       const s = m.stats();
       expect(s.scoreFor).not.toBe(s.scoreAgainst);
-      expect(s.kicks).toBe(m.shootout.a.length);
-      expect(() => applyMatch(c, s, rng)).not.toThrow();
+      c = applyMatch(c, s, rng).career;
+      expect(validateCareer(c)).toBeNull();
     }
+    expect(c.season).toBe(5);
   });
 });
 
@@ -280,13 +363,31 @@ describe('SaveManager', () => {
     if (r.status === 'ok') expect(r.career).toEqual(c);
   });
 
+  it('migra a carreira da versão 1 para clubes reais', () => {
+    const st = mem();
+    const v1 = {
+      identity, age: 21, clubId: 'nautico', attributes: { precision: 60, power: 55, curve: 50, composure: 58 },
+      level: 6, xp: 12, skillPoints: 2, money: 4000, reputation: 22, season: 4, round: 5,
+      schedule: [], standings: [], history: [], trophies: [{ season: 2, name: 'Liga Regional', clubId: 'nautico' }], matchesPlayed: 18, offers: [],
+    };
+    st.setItem('penalty-career/save', JSON.stringify({ saveVersion: 1, career: v1 }));
+    const r = loadCareer(st);
+    expect(r.status).toBe('ok');
+    if (r.status !== 'ok') return;
+    expect(r.career.clubId).toBe('gremio');
+    expect(r.career).toMatchObject({ level: 6, money: 4000, reputation: 22, season: 4, age: 21 });
+    expect(r.career.trophies).toHaveLength(1);
+    expect(validateCareer(r.career)).toBeNull();
+    expect(JSON.parse(st.getItem('penalty-career/save')!).saveVersion).toBe(2);
+  });
+
   it('detecta salvamento corrompido ou de versão incompatível', () => {
     const st = mem();
     st.setItem('penalty-career/save', '{nao é json');
     expect(loadCareer(st).status).toBe('corrupt');
     st.setItem('penalty-career/save', JSON.stringify({ saveVersion: 99, career: {} }));
     expect(loadCareer(st).status).toBe('corrupt');
-    st.setItem('penalty-career/save', JSON.stringify({ saveVersion: 1, career: { identity: {} } }));
+    st.setItem('penalty-career/save', JSON.stringify({ saveVersion: 2, career: { identity: {} } }));
     expect(loadCareer(st).status).toBe('corrupt');
     expect(loadCareer(mem()).status).toBe('none');
   });

@@ -50,31 +50,65 @@ export interface DefendedKick extends KickOutcome {
   reaction: Reaction;
 }
 
-export interface Club {
+/** Clube ou seleção: tudo que entra em campo numa disputa. */
+export interface Team {
   id: string;
   name: string;
   short: string;
-  city: string;
-  tier: 1 | 2 | 3;
   primary: string;
   secondary: string;
   /** Qualidade dos cobradores, 0..1 */
   strength: number;
   /** Qualidade do goleiro, 0..1 */
   keeper: number;
+}
+
+export interface Club extends Team {
+  city: string;
+  /** Liga de origem (acesso e rebaixamento ficam em Career.leagueOf) */
+  league: string;
   /** Reputação mínima para o clube fazer uma proposta */
   minReputation: number;
 }
+
+export interface League { id: string; name: string; country: string; tier: number; continent: 'sa' | 'eu' }
+
+export interface Nation extends Team { confed: 'CONMEBOL' | 'UEFA' | 'CONCACAF' | 'CAF' | 'AFC' }
 
 export type ObjectiveId = 'win' | 'score_all' | 'score_3' | 'perfect' | 'top_corner' | 'save_one';
 export interface Objective { id: ObjectiveId; text: string }
 
 export interface Standing { clubId: string; played: number; won: number; lost: number; pts: number; scored: number; conceded: number }
 
+export type CompKind = 'league' | 'cup' | 'continental' | 'national';
+
+/**
+ * Uma competição da temporada. Pontos corridos usam schedule/standings; grupos também
+ * (e viram mata-mata ao fim); o mata-mata guarda as equipes vivas em pares consecutivos.
+ */
+export interface Competition {
+  id: string;
+  kind: CompKind;
+  name: string;
+  format: 'league' | 'groups' | 'knockout';
+  teams: string[];
+  schedule: [string, string][][];
+  standings: Standing[];
+  groups: string[][];
+  bracket: string[];
+  /** Rodadas jogadas na fase atual */
+  round: number;
+  champion: string | null;
+  /** Fase em que o time do jogador caiu */
+  exit: string | null;
+}
+
 export interface MatchRecord {
   season: number;
-  round: number;
-  clubId: string;
+  comp: string;
+  stage: string;
+  /** Clube ou seleção pela qual o jogador atuou */
+  teamId: string;
   opponentId: string;
   scoreFor: number;
   scoreAgainst: number;
@@ -86,10 +120,18 @@ export interface MatchRecord {
 
 export interface Trophy { season: number; name: string; clubId: string }
 
+/** Salário por partida de clube e última temporada do vínculo. */
+export interface Contract { salary: number; until: number }
+
+export interface Offer { clubId: string; salary: number; seasons: number; renewal: boolean }
+
+export interface CareerStats { goals: number; kicks: number; saves: number; caps: number }
+
 export interface Career {
   identity: PlayerIdentity;
   age: number;
   clubId: string;
+  contract: Contract;
   attributes: Attributes;
   level: number;
   xp: number;
@@ -97,15 +139,23 @@ export interface Career {
   money: number;
   reputation: number;
   season: number;
-  /** Índice da próxima rodada; igual a schedule.length quando a temporada acabou */
-  round: number;
-  schedule: [string, string][][];
-  standings: Standing[];
+  /** Competições da temporada atual */
+  comps: Competition[];
+  /** Próximas partidas do jogador, em ordem (ids de comps); vazio = temporada encerrada */
+  calendar: string[];
+  /** Convocado para o torneio de seleções desta temporada */
+  calledUp: boolean;
+  /** Acesso/rebaixamento: liga atual de clubes que mudaram de divisão */
+  leagueOf: Record<string, string>;
+  /** Classificado para o torneio continental da próxima temporada */
+  continental: boolean;
   history: MatchRecord[];
   trophies: Trophy[];
   matchesPlayed: number;
-  /** Preenchido ao fim da temporada: ids de clubes que fizeram proposta */
-  offers: string[];
+  stats: CareerStats;
+  news: string[];
+  /** Janela de transferências do fim da temporada */
+  offers: Offer[];
 }
 
 export interface MatchStats {

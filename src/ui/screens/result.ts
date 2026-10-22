@@ -1,5 +1,5 @@
 import { sfx } from '../../game/audio';
-import { getClub } from '../../game/data/clubs';
+import { getTeam } from '../../game/data/clubs';
 import { seasonOver } from '../../game/systems/Career';
 import { ZONE_NAMES } from '../../game/systems/PenaltyResolver';
 import type { App } from '../app';
@@ -16,14 +16,15 @@ export function renderResult(app: App): HTMLElement {
     return el('<section class="screen"></section>');
   }
   const { stats: s, rewards: w, career: c } = r;
-  const club = getClub(c.clubId);
-  const opp = getClub(r.opponentId);
+  const club = getTeam(r.teamId);
+  const opp = getTeam(r.opponentId);
   const view = el(`<section class="screen narrow result">
     <div class="panel result-head ${s.won ? 'won' : 'lost'}">
-      <p class="kicker-line">${s.won ? 'Vitória nos pênaltis' : 'Derrota nos pênaltis'}</p>
+      <p class="kicker-line">${s.won ? 'Vitória' : 'Derrota'} · ${esc(r.comp)} · ${esc(r.stage)}</p>
       <div class="result-score">${badge(club, 64)}<b>${s.scoreFor}</b><span>x</span><b>${s.scoreAgainst}</b>${badge(opp, 64)}</div>
       <p>${esc(club.name)} contra ${esc(opp.name)}</p>
     </div>
+    ${w.titles.map((t) => `<div class="panel title-won"><p class="kicker-line">Título conquistado</p><b>${esc(t)}</b><span>Temporada ${c.season} · ${esc(club.name)}</span></div>`).join('')}
     <div class="prep-grid">
       <div class="panel">
         <h2>Suas cobranças <small>${s.goals} de ${s.kicks}</small></h2>
@@ -41,7 +42,7 @@ export function renderResult(app: App): HTMLElement {
           ${s.decisiveGoals ? `<li><span>Cobranças decisivas</span><b>${s.decisiveGoals}</b></li>` : ''}
         </ul>
         ${w.levelsGained ? `<div class="levelup"><b>Subiu para o nível ${c.level}!</b><span>+${w.pointsGained} pontos de habilidade para distribuir no painel.</span></div>` : ''}
-        ${seasonOver(c) ? '<div class="levelup"><b>Fim da temporada</b><span>Veja a classificação final e as propostas no painel.</span></div>' : ''}
+        ${seasonOver(c) ? '<div class="levelup"><b>Fim da temporada</b><span>Veja o resumo e as propostas da janela de transferências no painel.</span></div>' : ''}
       </div>
     </div>
     <button class="btn primary big wide" data-a="back">Voltar ao painel</button>

@@ -1,10 +1,11 @@
-import type { Attributes, Club, DefendedKick, Defense, KeeperProfile, KickOutcome, MatchStats, MeterParams, Objective, Rng, Zone } from '../types';
+import type { Attributes, DefendedKick, Defense, KeeperProfile, KickOutcome, MatchStats, MeterParams, Objective, Rng, Team, Zone } from '../types';
 import { defendStrike, meterParams, opponentStrike, resolveShot, type OpponentStrike, type Strike } from './PenaltyResolver';
-import { Shootout, type Team } from './Shootout';
+import { Shootout, type Team as Side } from './Shootout';
 
 export interface MatchSetup {
-  club: Club;
-  opponent: Club;
+  /** Time do jogador (clube ou seleção) */
+  club: Team;
+  opponent: Team;
   attrs: Attributes;
   /** 0..1: acelera a barra e fortalece o goleiro adversário */
   difficulty: number;
@@ -33,8 +34,8 @@ export class Match {
   /** 1 = esta cobrança pode decidir a disputa; morte súbita e cobranças finais também pesam. */
   pressure(): number {
     const s = this.shootout;
-    const me: Team = s.next;
-    const other: Team = me === 'a' ? 'b' : 'a';
+    const me: Side = s.next;
+    const other: Side = me === 'a' ? 'b' : 'a';
     if (s.winnerIf(true) === me || s.winnerIf(false) === other) return 1;
     if (s.suddenDeath) return 0.7;
     return s[me].length >= 3 ? 0.4 : 0;

@@ -88,7 +88,7 @@ try {
 
   await playMatch(1, true);
   const saved1 = await page.evaluate(() => JSON.parse(localStorage.getItem('penalty-career/save')));
-  if (saved1.saveVersion !== 1 || saved1.career.matchesPlayed !== 1 || saved1.career.round !== 1) fail('salvamento após a partida 1');
+  if (saved1.saveVersion !== 2 || saved1.career.matchesPlayed !== 1 || saved1.career.calendar.length !== 9) fail('salvamento após a partida 1');
   if (saved1.career.money <= 250 || saved1.career.history.length !== 1) fail('recompensas não aplicadas');
   console.log(`Após partida 1: nível ${saved1.career.level}, XP ${saved1.career.xp}, $${saved1.career.money}, rep ${saved1.career.reputation}, pontos ${saved1.career.skillPoints}`);
 
@@ -123,17 +123,20 @@ try {
   // Fim de temporada: força o calendário encerrado com uma proposta e aceita a transferência
   await page.evaluate(() => {
     const f = JSON.parse(localStorage.getItem('penalty-career/save'));
-    f.career.round = f.career.schedule.length;
-    f.career.offers = ['real-monte'];
+    f.career.calendar = [];
+    f.career.offers = [
+      { clubId: f.career.clubId, salary: 600, seasons: 2, renewal: true },
+      { clubId: 'flamengo', salary: 1500, seasons: 3, renewal: false },
+    ];
     localStorage.setItem('penalty-career/save', JSON.stringify(f));
   });
   await page.reload();
   await page.click('[data-a="continue"]');
   await snap(page, '14-season-end');
-  await page.click('[data-a="accept:real-monte"]');
+  await page.click('[data-a="sign:flamengo"]');
   const moved = await page.evaluate(() => JSON.parse(localStorage.getItem('penalty-career/save')).career);
-  if (moved.clubId !== 'real-monte' || moved.season !== 2 || moved.round !== 0 || moved.age !== 19) fail('transferência/nova temporada');
-  else console.log('Fim de temporada + transferência para Real Monte Azul: OK');
+  if (moved.clubId !== 'flamengo' || moved.season !== 2 || moved.age !== 19 || moved.contract.salary !== 1500 || moved.comps[0].name !== 'Brasileirão Série A') fail('transferência/nova temporada');
+  else console.log('Fim de temporada + transferência para o Flamengo (Série A, contrato novo): OK');
   await snap(page, '15-new-club');
 
   await page.evaluate(() => localStorage.setItem('penalty-career/save', '{quebrado'));

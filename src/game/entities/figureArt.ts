@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { BOOT_COLORS, HAIR_COLORS, SKIN_TONES } from '../data/appearance';
-import type { Appearance, Club } from '../types';
+import type { Appearance, Team } from '../types';
 
 /** Cores do uniforme em CSS (#rrggbb). */
 export interface Kit { shirt: string; trim: string; shorts: string; socks: string }
@@ -11,7 +11,7 @@ export interface FigureSkin { leg: Part; shorts: Part; torso: Part; arm: Part; h
 export type View = 'back' | 'front';
 
 /** Uniforme de linha de um clube. */
-export const clubKit = (club: Club): Kit => ({ shirt: club.primary, trim: club.secondary, shorts: club.secondary, socks: club.primary });
+export const clubKit = (club: Team): Kit => ({ shirt: club.primary, trim: club.secondary, shorts: club.secondary, socks: club.primary });
 
 /** Peças rasterizadas a 3x as unidades do corpo: ficam nítidas com o zoom da câmera. */
 export const ART_SCALE = 3;

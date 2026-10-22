@@ -210,6 +210,37 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
 .offers small { display: block; }
 .season-end > .btn { width: 100%; margin-top: 12px; }
 
+/* Competições, calendário e notícias */
+.comp-tag { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 3px 8px;
+  border-radius: 99px; background: #26302c; color: #cfd8d2; white-space: nowrap; }
+.comp-tag.cup { background: #1d3b2a; color: #7fe0a3; }
+.comp-tag.continental { background: #1b2c48; color: #8cc0ff; }
+.comp-tag.national { background: #3d3412; color: var(--accent); }
+.comp-line { margin: -6px 0 6px; color: var(--muted); }
+.comp-line b { color: var(--text); }
+.comp-list { list-style: none; margin: 0; padding: 0; }
+.comp-list li { display: flex; gap: 12px; align-items: center; padding: 9px 0; border-top: 1px solid var(--line); }
+.comp-list li:first-child { border-top: 0; }
+.comp-list li .comp-tag { width: 104px; text-align: center; }
+.comp-list b { display: block; }
+.comp-list small { font-size: 13px; }
+.cal-title { margin: 14px 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 700; }
+.calendar { display: flex; flex-wrap: wrap; gap: 6px; }
+.calendar .comp-tag { text-transform: none; letter-spacing: 0; font-size: 12px; }
+.small-note { font-size: 13px; margin-top: 12px; }
+.news { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.news li { font-size: 14px; line-height: 1.4; padding-left: 12px; border-left: 2px solid var(--line); }
+.news li:first-child { border-left-color: var(--accent); }
+.contract { margin-top: 14px; font-size: 14px; color: var(--muted); }
+.contract b { color: var(--text); }
+.season-end h3 { margin: 16px 0 6px; font-size: 14px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.offers li.renewal { opacity: .9; }
+.career-nums { row-gap: 14px; }
+.title-won { margin-top: 16px; display: grid; justify-items: center; text-align: center; gap: 4px; border: 1px solid var(--accent);
+  background: rgba(255, 210, 63, .08); }
+.title-won b { font-size: 30px; color: var(--accent); }
+.title-won span { color: var(--muted); }
+
 /* Preparação e resultado */
 .prep-head { text-align: center; background: linear-gradient(90deg, color-mix(in srgb, var(--home) 22%, var(--panel)), var(--panel) 40% 60%, color-mix(in srgb, var(--away) 22%, var(--panel))); }
 .prep-teams { display: flex; justify-content: center; align-items: center; gap: 40px; margin: 12px 0; }

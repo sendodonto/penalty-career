@@ -2,6 +2,8 @@
 
 Jogo 2D de carreira de futebol em que toda partida é uma disputa de pênaltis. Vite + TypeScript + Phaser 3, menus em HTML/CSS, salvamento em LocalStorage.
 
+**Jogar online:** https://sendodonto.github.io/penalty-career/ (publicado pelo workflow `.github/workflows/pages.yml` a cada push na `main`).
+
 ## Rodar
 
 ```bash

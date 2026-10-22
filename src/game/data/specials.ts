@@ -33,7 +33,17 @@ export interface Special {
   taunts: string[];
   trophy: string;
   theme: Theme;
+  /** Cutscenes: o capitão adversário fala na abdução, na chegada e no fim */
+  captain: string;
+  lines: { abduct: string; arrive: string[]; reply: string; target: string; win: string; lose: string };
+  /** Alvo temático no gol: acerte a bola nele para derrubá-lo */
+  target: { kind: 'ship' | 'drone' | 'bone' | 'yarn'; name: string };
+  /** Itens exclusivos (data/shop): vencer o raid e derrubar TARGETS_FOR_ITEM alvos numa partida */
+  rewards: { win: string; targets: string };
 }
+
+/** Alvos derrubados numa partida de raid para ganhar o segundo item exclusivo. */
+export const TARGETS_FOR_ITEM = 3;
 
 /** O time do jogador nas partidas especiais. */
 export const EARTH: Team = { id: 's-earth', name: 'Seleção da Terra', short: 'TER', primary: '#1f6fd1', secondary: '#3cc46a', strength: 0.72, keeper: 0.72 };
@@ -49,6 +59,15 @@ export const SPECIALS: Special[] = [
     place: 'Marte · Arena Olympus Mons', ship: 'saucer', beam: 0x9dff8a, species: 'alien', skins: ['#7ddc6a', '#5fc7a0', '#a3e05a'],
     names: ['ZORG', 'KLAATU', 'X-17', 'GLORP', 'ZYX'], trophy: 'Copa Intergaláctica',
     taunts: ['BLORP!', 'Leve-me ao seu goleiro.', 'Terráqueo fraco!', 'Bip... gol... bip.', 'Nós inventamos o pênalti.'],
+    captain: 'Capitão Zorg', target: { kind: 'ship', name: 'nave-espiã' }, rewards: { win: 'boots-mars', targets: 'sleeves-mars' },
+    lines: {
+      abduct: 'Terráqueo! Precisamos do seu pé direito. É urgente. Bip.',
+      arrive: ['Bem-vindo a Marte, terráqueo. Aqui a gravidade é menor e a torcida é maior.', 'Vença os Marcianos FC nos pênaltis ou vai virar atração do nosso zoológico.'],
+      reply: 'Eu só queria bater um pênalti...',
+      target: 'E nossa nave-espiã fica de olho no gol. Se você acertar a bola nela, ela cai. Ninguém nunca conseguiu.',
+      win: 'Impossível! Os cálculos davam 0% de chance... Leve a Copa Intergaláctica. E essas chuteiras. Some daqui.',
+      lose: 'BLORP! Vitória marciana! Pode voltar pra Terra... a gente tem mais gente pra abduzir.',
+    },
     team: { id: 's-mars', name: 'Marcianos FC', short: 'MAR', primary: '#6c2bd1', secondary: '#9dff8a', strength: 0.8, keeper: 0.78 },
     theme: {
       stands: [0x3a1410, 0x2e0f0c], roof: 0x1a0705, pitch: [0xb5562f, 0xa24a2a], lines: 0xffe2c4, board: 0x4a1d12,
@@ -60,6 +79,15 @@ export const SPECIALS: Special[] = [
     place: 'Estação Orbital Ômega', ship: 'drone', beam: 0x5bd8ff, species: 'cyborg', skins: ['#9aa3ad', '#7d8794', '#b8c0c9'],
     names: ['XL-9', 'T-800', 'OMEGA', 'UNIT-3', 'NEXUS'], trophy: 'Taça Ciborgue',
     taunts: ['EXECUTANDO CHUTE.EXE', 'Probabilidade de gol: 99,8%.', 'Erro 404: goleiro não encontrado.', 'Atualizando firmware...', 'Eu voltarei. Para bater.'],
+    captain: 'Unidade Ômega', target: { kind: 'drone', name: 'drone de vigilância' }, rewards: { win: 'boots-cyborg', targets: 'sleeves-cyborg' },
+    lines: {
+      abduct: 'ALVO IDENTIFICADO: COBRADOR HUMANO. INICIANDO CAPTURA.',
+      arrive: ['Bem-vindo à Estação Orbital Ômega. Sua chance de vitória foi calculada em 0,3%.', 'Se perder, você será convertido em gandula. Para sempre.'],
+      reply: 'Alguém aqui pelo menos sabe o que é impedimento?',
+      target: 'Nosso drone de vigilância flutua no gol. Acertá-lo com a bola é estatisticamente impossível.',
+      win: 'ERRO. ERRO. DERROTA NÃO PREVISTA. Leve o troféu e as chuteiras antes que eu reinicie.',
+      lose: 'VITÓRIA CONFIRMADA. Devolvendo humano ao planeta de origem. Avalie nosso serviço.',
+    },
     team: { id: 's-cyborg', name: 'Ciborgues United', short: 'CYB', primary: '#2b3442', secondary: '#ff3b3b', strength: 0.84, keeper: 0.82 },
     theme: {
       stands: [0x161c26, 0x10151d], roof: 0x05070a, pitch: [0x313d4d, 0x2a3442], lines: 0x5bd8ff, board: 0x0e2233,
@@ -71,6 +99,15 @@ export const SPECIALS: Special[] = [
     place: 'Planeta Latido · Estádio do Osso', ship: 'dog', beam: 0xffd23f, species: 'dog', skins: ['#a8693f', '#d9b27a', '#5a3a22', '#efe5cc'],
     names: ['REX', 'BOLINHA', 'THOR', 'PIPOCA', 'TOBIAS'], trophy: 'Copa do Osso',
     taunts: ['AU AU AU!', 'Cadê a bolinha? CADÊ?', 'Quem é um bom cobrador? Eu!', 'Grrr... foco.', 'Depois do gol, petisco.'],
+    captain: 'Capitão Rex', target: { kind: 'bone', name: 'osso voador' }, rewards: { win: 'boots-dogs', targets: 'sleeves-dogs' },
+    lines: {
+      abduct: 'AU! Você! É, você mesmo! Vem brincar com a gente!',
+      arrive: ['Bem-vindo ao Planeta Latido! Aqui todo mundo é bom garoto. Menos você, talvez.', 'Pênaltis valendo! Se perder, vai jogar a bolinha pra gente pelo resto da vida.'],
+      reply: 'Isso é um sonho, né? Fala que é um sonho.',
+      target: 'Tá vendo o osso voador ali no gol? NÃO acerta ele. É sagrado. ...Tá bom, se acertar, ganha prêmio.',
+      win: 'Cainhooo... Você é um bom garoto. Leva a Copa do Osso e essas chuteiras.',
+      lose: 'AU AU AU! Ganhamos! Agora joga a bolinha. Joga. JOGA. ...Tá, pode ir embora.',
+    },
     team: { id: 's-dogs', name: 'Matilha FC', short: 'MAT', primary: '#e0a21b', secondary: '#5a3a22', strength: 0.74, keeper: 0.72 },
     theme: {
       stands: [0x2a1d12, 0x231810], roof: 0x120c06, pitch: [0x479a42, 0x3e8b3a], lines: 0xffffff, board: 0x3a2814,
@@ -82,6 +119,15 @@ export const SPECIALS: Special[] = [
     place: 'Miaulópolis · Arena do Arranhão', ship: 'cat', beam: 0xff7ad9, species: 'cat', skins: ['#f08a3c', '#9c9a94', '#1b1b1f', '#efe5cc'],
     names: ['FÉLIX', 'NINA', 'GARRA', 'TOM', 'BIGODE'], trophy: 'Troféu do Novelo',
     taunts: ['Miau.', 'Vou derrubar essa bola da mesa.', 'Isso aqui é meu agora.', 'Prrr... ronron... gol.', 'Sete vidas, sete gols.'],
+    captain: 'Duquesa Bigode', target: { kind: 'yarn', name: 'novelo' }, rewards: { win: 'boots-cats', targets: 'sleeves-cats' },
+    lines: {
+      abduct: 'Humano. Você foi escolhido. Não que a gente se importe. Miau.',
+      arrive: ['Bem-vindo a Miaulópolis. Não toque em nada. Na verdade, tudo aqui é meu.', 'Vença nos pênaltis e talvez a gente deixe você ir. Se não, vira nosso abridor de sachê.'],
+      reply: 'Por que a bola sempre cai da mesa aqui?',
+      target: 'Aquele novelo pendurado no gol? Derrube com a bola. Não por mim. Eu nem ligo. ...Derrube.',
+      win: 'Hmpf. Que seja. Leve o Troféu do Novelo e essas chuteiras. Eu nem queria.',
+      lose: 'Miau. Como esperado. Pode ir, humano. A porta estava aberta o tempo todo.',
+    },
     team: { id: 's-raid', name: 'Miau United', short: 'MIA', primary: '#111111', secondary: '#ff7a1a', strength: 0.78, keeper: 0.8 },
     theme: {
       stands: [0x1d1430, 0x170f27], roof: 0x0b0714, pitch: [0x337b76, 0x2c6e6a], lines: 0xffd9f0, board: 0x2b1640,

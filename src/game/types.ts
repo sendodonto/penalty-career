@@ -176,4 +176,6 @@ export interface MatchStats {
   userKicks: KickOutcome[];
   /** Imprevistos e clima que marcaram a partida (ids de MatchEvents) */
   events: string[];
+  /** Raids: alvos temáticos derrubados com a bola */
+  targets?: number;
 }

@@ -25,6 +25,7 @@ export function renderResult(app: App): HTMLElement {
       <p>${esc(club.name)} contra ${esc(opp.name)}</p>
       ${s.events.length ? `<div class="moments">${s.events.map((e) => `<span class="comp-tag">${esc(EVENT_LABEL[e] ?? e)}</span>`).join('')}</div>` : ''}
     </div>
+    ${(w.items ?? []).map((t) => `<div class="panel title-won raid-loot"><p class="kicker-line">Item exclusivo ganho</p><b>${esc(t)}</b><span>Já está no seu armário: equipe na aba Loja</span></div>`).join('')}
     ${w.titles.map((t) => `<div class="panel title-won"><p class="kicker-line">Título conquistado</p><b>${esc(t)}</b><span>Temporada ${c.season} · ${esc(club.name)}</span></div>`).join('')}
     <div class="prep-grid">
       <div class="panel">
@@ -40,6 +41,7 @@ export function renderResult(app: App): HTMLElement {
           <li><span>Pagamento</span><b>+${money(w.money)}</b></li>
           <li><span>Reputação</span><b>${w.reputation >= 0 ? '+' : ''}${w.reputation}</b></li>
           ${s.saves ? `<li><span>Defesas como goleiro</span><b>${s.saves}</b></li>` : ''}
+          ${r.raid ? `<li><span>Alvos derrubados</span><b>${s.targets ?? 0}</b></li>` : ''}
           ${s.decisiveGoals ? `<li><span>Cobranças decisivas</span><b>${s.decisiveGoals}</b></li>` : ''}
         </ul>
         ${w.levelsGained ? `<div class="levelup"><b>Subiu para o nível ${c.level}!</b><span>+${w.pointsGained} pontos de habilidade para distribuir no painel.</span></div>` : ''}

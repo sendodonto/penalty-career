@@ -4,6 +4,7 @@ import { figureSkin, type Kit } from '../entities/figureArt';
 import { Kicker } from '../entities/Figures';
 import type { Stadium } from '../entities/Stadium';
 import type { Special } from '../data/specials';
+import { playRaid, sleep, tween } from './RaidScenes';
 import type { Incident } from '../data/incidents';
 import type { Weather } from '../types';
 
@@ -48,9 +49,6 @@ export function weatherFx(scene: Phaser.Scene, weather: Weather): void {
   }
 }
 
-const sleep = (scene: Phaser.Scene, ms: number) => new Promise<void>((r) => scene.time.delayedCall(ms, r));
-const tween = (scene: Phaser.Scene, cfg: Phaser.Types.Tweens.TweenBuilderConfig) =>
-  new Promise<void>((r) => scene.tweens.add({ ...cfg, onComplete: () => r() }));
 
 const r = (n: number) => Math.floor(Math.random() * n);
 const randomLook = () => ({ skin: r(SKIN_TONES.length), hair: r(HAIR_STYLES.length), hairColor: r(HAIR_COLORS.length) });
@@ -130,97 +128,4 @@ export async function playIncident(scene: Phaser.Scene, kind: Incident, ctx: Inc
     return;
   }
   await playRaid(scene, ctx);
-}
-
-/** Naves dos raids, cada uma com sua piada visual. */
-function ship(scene: Phaser.Scene, sp: Special): Phaser.GameObjects.Container {
-  const c = scene.add.container(-200, -320).setDepth(46);
-  const g = scene.add.graphics();
-  const OL = 0x17110d;
-  const parts: Phaser.GameObjects.GameObject[] = [g];
-  if (sp.ship === 'drone') {
-    // Drone ciborgue: hexágono com um olho vermelho e hélices
-    g.fillStyle(0x3a4452).lineStyle(2, OL).fillPoints([{ x: -50, y: 0 }, { x: -28, y: -24 }, { x: 28, y: -24 }, { x: 50, y: 0 }, { x: 28, y: 22 }, { x: -28, y: 22 }] as Phaser.Types.Math.Vector2Like[], true)
-      .strokePoints([{ x: -50, y: 0 }, { x: -28, y: -24 }, { x: 28, y: -24 }, { x: 50, y: 0 }, { x: 28, y: 22 }, { x: -28, y: 22 }] as Phaser.Types.Math.Vector2Like[], true);
-    g.fillStyle(0x111111).fillCircle(0, 0, 13).fillStyle(0xff3b3b).fillCircle(0, 0, 8).fillStyle(0xffd0d0).fillCircle(-3, -3, 2.4);
-    for (const x of [-46, 46]) {
-      const prop = scene.add.rectangle(x, -30, 46, 5, 0x9aa3ad).setStrokeStyle(1.5, OL);
-      scene.tweens.add({ targets: prop, scaleX: { from: 1, to: -1 }, duration: 90, yoyo: true, repeat: -1 });
-      parts.push(prop);
-    }
-    parts.push(scene.add.text(0, 34, 'PROTOCOLO RAID', { fontFamily: 'Bahnschrift, Arial', fontSize: '12px', fontStyle: 'bold', color: '#5bd8ff' }).setOrigin(0.5).setResolution(2));
-  } else {
-    // Disco: casco, cúpula e o "tripulante" espiando
-    const hull = sp.ship === 'dog' ? 0xb07a45 : sp.ship === 'cat' ? 0x24242a : 0xaeb6c2;
-    g.fillStyle(0x9fe7ff, 0.95).fillEllipse(0, -16, 50, 34).lineStyle(2, OL).strokeEllipse(0, -16, 50, 34);
-    if (sp.ship === 'saucer') g.fillStyle(0x7ddc6a).fillEllipse(0, -18, 18, 20).fillStyle(0x0d0d12).fillEllipse(-4, -20, 6, 4).fillEllipse(4, -20, 6, 4);
-    if (sp.ship === 'cat') g.fillStyle(0xd9e85a).fillEllipse(-7, -18, 9, 7).fillEllipse(7, -18, 9, 7).fillStyle(0x111111).fillEllipse(-7, -18, 2, 6).fillEllipse(7, -18, 2, 6);
-    if (sp.ship === 'dog') g.fillStyle(0x17110d).fillEllipse(0, -12, 10, 7).fillStyle(0xff6f91).fillEllipse(0, -4, 6, 9);
-    g.fillStyle(hull).fillEllipse(0, 0, 130, 32).lineStyle(2, OL).strokeEllipse(0, 0, 130, 32);
-    g.fillStyle(0x000000, 0.25).fillEllipse(0, 7, 96, 12);
-    if (sp.ship === 'dog') {
-      // orelhas caídas e rabo abanando
-      g.fillStyle(0x6b4026).lineStyle(2, OL).fillEllipse(-62, 14, 20, 40).strokeEllipse(-62, 14, 20, 40).fillEllipse(62, 14, 20, 40).strokeEllipse(62, 14, 20, 40);
-      const tail = scene.add.rectangle(70, -6, 30, 8, 0xb07a45).setOrigin(0, 0.5).setStrokeStyle(1.5, OL);
-      scene.tweens.add({ targets: tail, rotation: { from: -0.6, to: -1.4 }, duration: 120, yoyo: true, repeat: -1 });
-      parts.push(tail);
-    }
-    if (sp.ship === 'cat') {
-      // orelhas pontudas, bigodes e um novelo pendurado
-      g.fillStyle(0x24242a).lineStyle(2, OL).fillTriangle(-40, -6, -26, -40, -14, -10).strokeTriangle(-40, -6, -26, -40, -14, -10)
-        .fillTriangle(40, -6, 26, -40, 14, -10).strokeTriangle(40, -6, 26, -40, 14, -10);
-      g.lineStyle(1.5, 0xf4f1e8).lineBetween(-66, -2, -96, -10).lineBetween(-66, 4, -98, 4).lineBetween(66, -2, 96, -10).lineBetween(66, 4, 98, 4);
-      const yarn = scene.add.container(0, 0);
-      const yg = scene.add.graphics().lineStyle(1.5, 0xf4f1e8).lineBetween(0, 14, 0, 58).fillStyle(0xff4fa3).fillCircle(0, 64, 9).lineStyle(1, 0xffffff, 0.7).strokeCircle(0, 64, 6);
-      yarn.add(yg);
-      scene.tweens.add({ targets: yarn, rotation: { from: -0.35, to: 0.35 }, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
-      parts.push(yarn);
-    }
-    const lights = [-44, -22, 0, 22, 44].map((x, i) => scene.add.circle(x, 3, 4, [0xffd23f, 0x5bd8ff, 0xff4fa3][i % 3]));
-    scene.tweens.add({ targets: lights, alpha: 0.2, duration: 200, yoyo: true, repeat: -1 });
-    parts.push(...lights);
-  }
-  c.add(parts);
-  return c;
-}
-
-/** Raid: a nave chega, o raio pega o jogador (que se debate e gira) e some no céu com ele. */
-async function playRaid(scene: Phaser.Scene, ctx: IncidentCtx): Promise<void> {
-  const sp = ctx.special!;
-  ctx.toast(sp.title, sp.intro);
-  ctx.sfx.ufo();
-  const player = await ctx.spawnPlayer();
-  const craft = ship(scene, sp);
-  await tween(scene, { targets: craft, x: player.x + 30, y: 250, duration: 1300, ease: 'Back.out' });
-  // Só balança depois de chegar: dois tweens no mesmo y brigariam e prenderiam a nave fora da tela.
-  const bob = scene.tweens.add({ targets: craft, y: 258, duration: 450, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
-  const top = 268;
-  const cone = scene.add.polygon(0, 0, [player.x + 8, top, player.x + 52, top, player.x + 110, player.y + 6, player.x - 50, player.y + 6], sp.beam, 0.3)
-    .setOrigin(0).setDepth(29).setAlpha(0);
-  await tween(scene, { targets: cone, alpha: 1, duration: 280 });
-  // Debate-se no ar: braços e pernas agitando
-  const flail = (p: Phaser.GameObjects.Container) => {
-    const fig = p as unknown as { armL: Phaser.GameObjects.Container; armR: Phaser.GameObjects.Container; legL: Phaser.GameObjects.Container; legR: Phaser.GameObjects.Container };
-    scene.tweens.add({ targets: fig.armL, rotation: { from: 1.8, to: 3 }, duration: 110, yoyo: true, repeat: -1 });
-    scene.tweens.add({ targets: fig.armR, rotation: { from: -1.8, to: -3 }, duration: 130, yoyo: true, repeat: -1 });
-    scene.tweens.add({ targets: [fig.legL, fig.legR], rotation: { from: -0.5, to: 0.5 }, duration: 120, yoyo: true, repeat: -1 });
-  };
-  flail(player);
-  ctx.stadium.cheer(5);
-  const yell = scene.add.text(player.x + 70, player.y - 190, 'AAAAAH!', {
-    fontFamily: 'Bahnschrift, Arial', fontSize: '30px', fontStyle: 'bold', color: '#ffffff', stroke: '#17110d', strokeThickness: 6,
-  }).setOrigin(0.5).setDepth(55).setRotation(-0.12);
-  scene.tweens.add({ targets: yell, scale: { from: 0.9, to: 1.15 }, duration: 160, yoyo: true, repeat: -1 });
-  scene.tweens.add({ targets: yell, y: top - 10, x: player.x + 90, alpha: 0, duration: 1900, ease: 'Sine.in' });
-  await tween(scene, { targets: player, y: top + 20, x: player.x + 30, scale: 0.25, rotation: Math.PI * 4, duration: 1800, ease: 'Sine.in' });
-  player.setVisible(false);
-  yell.destroy();
-  bob.stop();
-  cone.destroy();
-  await tween(scene, { targets: craft, x: craft.x - 60, duration: 160, yoyo: true });
-  await tween(scene, { targets: craft, x: 1500, y: -420, scale: 0.4, duration: 700, ease: 'Back.in' });
-  scene.cameras.main.flash(220, 255, 255, 255, false);
-  craft.destroy();
-  player.destroy();
-  await sleep(scene, 400);
 }

@@ -40,6 +40,15 @@ try {
   await tapEl('[data-a="play"]');
   await page.waitForSelector('#stage:not([hidden]) canvas');
 
+  // Raid aleatório no meio da disputa: joga a partida especial, volta à Terra e segue a disputa original
+  const matchOver = async () => {
+    if (!(await page.locator('.result-head:visible').count())) return false;
+    if (!(await page.locator('[data-a="back"]:visible', { hasText: 'Voltar à Terra' }).count())) return true;
+    console.log('Raid durante a partida: voltando à Terra');
+    await page.click('[data-a="back"]');
+    await page.waitForTimeout(600);
+    return false;
+  };
   const hint = async () => (await page.locator('[data-hint]').textContent()) ?? '';
   /** Mundo 1280x720 -> tela, nos dois enquadramentos da câmera (ver PenaltyScene.applyLayout). */
   const at = async (x, y) => {
@@ -57,8 +66,8 @@ try {
   let defenses = 0;
   let rotated = false;
   const t0 = Date.now();
-  while (!(await page.locator('.result-head').count())) {
-    if (Date.now() - t0 > 240000) throw new Error('partida não terminou');
+  while (!(await matchOver())) {
+    if (Date.now() - t0 > 420000) throw new Error('partida não terminou');
     const h = await hint();
     if (h.includes('Toque na zona')) {
       await page.waitForTimeout(350);

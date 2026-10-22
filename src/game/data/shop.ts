@@ -1,3 +1,4 @@
+import type { SpecialId } from './specials';
 import type { Attributes } from '../types';
 
 /** Onde o item é usado; só um item equipado por slot. */
@@ -17,6 +18,8 @@ export interface ShopItem {
   bonus?: Partial<Attributes>;
   /** Reputação mínima para comprar */
   minRep?: number;
+  /** Exclusivo de raid: não se compra, ganha-se no raid indicado */
+  raid?: SpecialId;
 }
 
 const it = (item: ShopItem) => item;
@@ -30,10 +33,18 @@ export const SHOP: ShopItem[] = [
   it({ id: 'boots-silver', slot: 'boots', category: 'Chuteiras', name: 'Prata Precisa', desc: 'Cabedal fino para colocar no canto.', price: 9000, color: '#c9ced6', accent: '#2f3540', bonus: { precision: 2 }, minRep: 20 }),
   it({ id: 'boots-emerald', slot: 'boots', category: 'Chuteiras', name: 'Esmeralda Efeito', desc: 'Pega na bola de lado e ela faz a curva.', price: 9000, color: '#14b38a', accent: '#0b3d2e', bonus: { curve: 2 }, minRep: 20 }),
   it({ id: 'boots-gold', slot: 'boots', category: 'Chuteiras', name: 'Ouro Lendária', desc: 'A chuteira dos artilheiros históricos.', price: 30000, color: '#e2b437', accent: '#5a3d00', bonus: { power: 2, composure: 1 }, minRep: 50 }),
+  it({ id: 'boots-mars', slot: 'boots', category: 'Chuteiras', name: 'Marciana', desc: 'Exclusiva do Raid Alienígena: vença os Marcianos FC.', price: 0, color: '#7ddc6a', accent: '#6c2bd1', bonus: { precision: 2, curve: 1 }, raid: 'mars' }),
+  it({ id: 'boots-cyborg', slot: 'boots', category: 'Chuteiras', name: 'Cromada T-800', desc: 'Exclusiva do Raid Ciborgue: vença os Ciborgues United.', price: 0, color: '#b8c0c9', accent: '#ff3b3b', bonus: { power: 2, composure: 1 }, raid: 'cyborg' }),
+  it({ id: 'boots-dogs', slot: 'boots', category: 'Chuteiras', name: 'Osso de Ouro', desc: 'Exclusiva do Raid Canino: vença a Matilha FC.', price: 0, color: '#efe5cc', accent: '#e0a21b', bonus: { composure: 2, power: 1 }, raid: 'dogs' }),
+  it({ id: 'boots-cats', slot: 'boots', category: 'Chuteiras', name: 'Sete Vidas', desc: 'Exclusiva do Raid Felino: vença o Miau United.', price: 0, color: '#1b1b1f', accent: '#ff7a1a', bonus: { curve: 2, precision: 1 }, raid: 'raid' }),
 
   it({ id: 'sleeves-black', slot: 'sleeves', category: 'Roupas', name: 'Segunda pele preta', desc: 'Manga longa por baixo da camisa.', price: 800, color: '#17181c' }),
   it({ id: 'sleeves-white', slot: 'sleeves', category: 'Roupas', name: 'Segunda pele branca', desc: 'Manga longa clara, estilo europeu.', price: 800, color: '#eeece6' }),
   it({ id: 'sleeves-club', slot: 'sleeves', category: 'Roupas', name: 'Segunda pele do clube', desc: 'Na cor principal do seu clube.', price: 1200, color: 'club' }),
+  it({ id: 'sleeves-mars', slot: 'sleeves', category: 'Roupas', name: 'Segunda pele marciana', desc: 'Raid Alienígena: derrube 3 naves-espiãs numa partida.', price: 0, color: '#7ddc6a', raid: 'mars' }),
+  it({ id: 'sleeves-cyborg', slot: 'sleeves', category: 'Roupas', name: 'Segunda pele cromada', desc: 'Raid Ciborgue: derrube 3 drones numa partida.', price: 0, color: '#9aa3ad', raid: 'cyborg' }),
+  it({ id: 'sleeves-dogs', slot: 'sleeves', category: 'Roupas', name: 'Segunda pele caramelo', desc: 'Raid Canino: derrube 3 ossos voadores numa partida.', price: 0, color: '#d9b27a', raid: 'dogs' }),
+  it({ id: 'sleeves-cats', slot: 'sleeves', category: 'Roupas', name: 'Segunda pele felina', desc: 'Raid Felino: derrube 3 novelos numa partida.', price: 0, color: '#f08a3c', raid: 'raid' }),
   it({ id: 'socks-low', slot: 'socks', category: 'Roupas', name: 'Meião baixo', desc: 'Meião abaixado, caneleira à mostra.', price: 500 }),
 
   it({ id: 'headband-white', slot: 'headband', category: 'Acessórios', name: 'Faixa branca', desc: 'Segura o cabelo na hora da batida.', price: 300, color: '#f4f1e8' }),

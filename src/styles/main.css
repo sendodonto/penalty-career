@@ -475,3 +475,8 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
 @media (prefers-reduced-motion: reduce) {
   .enter, .modal-backdrop, .toast { animation: none; }
 }
+
+/* Raids: itens exclusivos */
+.raid-loot { border-color: #5bd8ff; }
+.raid-loot b { color: #5bd8ff; }
+.shop-item.raid-item:not(.on) { border-color: rgba(91, 216, 255, 0.45); }

@@ -4,8 +4,10 @@ import { BOOT_COLORS, FONT, HAIR_COLORS, HAIR_STYLES, KEEPER_KITS, SKIN_TONES } 
 import { IS_TOUCH } from '../device';
 import type { GearVisual } from '../data/shop';
 import { clubKit, figureSkin, type FigureSkin, type Kit } from '../entities/figureArt';
+import { captainSkin } from './RaidScenes';
 import { getSpecial, SPECIALS, type Special, type SpecialId } from '../data/specials';
 import { INCIDENT_CHANCE, pickIncident, playIncident, weatherFx, type Incident } from './MatchEvents';
+import { RaidTarget, raidIntro, raidOutro, type RaidCtx } from './RaidScenes';
 import { Ball, hex, Keeper, Kicker } from '../entities/Figures';
 import { GOAL, SPOT, Stadium, toScreen } from '../entities/Stadium';
 import { REACTION } from '../systems/GoalkeeperAI';
@@ -142,7 +144,12 @@ export class PenaltyScene extends Phaser.Scene {
   private bannerScale = 1;
   private guardCols!: Phaser.GameObjects.Graphics;
   private guardLabels: Phaser.GameObjects.Text[] = [];
-  private skins!: { user: FigureSkin; opp: FigureSkin[]; keeperOwn: FigureSkin; keeperOpp: FigureSkin };
+  /** `captain`/`userFront`: retratos e personagens das cutscenes dos raids */
+  private skins!: { user: FigureSkin; opp: FigureSkin[]; keeperOwn: FigureSkin; keeperOpp: FigureSkin; captain?: FigureSkin; userFront?: FigureSkin };
+  /** Raid: alvo temático no gol e quantos você já derrubou */
+  private target?: RaidTarget;
+  private targetsHit = 0;
+  private lastHit = false;
   /** Invalida o carregamento assíncrono da arte se a cena reiniciar antes de terminar. */
   private run = 0;
   private reactCue!: Phaser.GameObjects.Text;
@@ -169,6 +176,9 @@ export class PenaltyScene extends Phaser.Scene {
     this.guard = null;
     this.turns = 0;
     this.incidents = 0;
+    this.target = undefined;
+    this.targetsHit = 0;
+    this.lastHit = false;
   }
 
   create() {
@@ -213,12 +223,14 @@ export class PenaltyScene extends Phaser.Scene {
 
     if (this.d.demo) this.meterUi.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false));
     const run = this.run;
-    void this.loadSkins().then(() => {
+    void this.loadSkins().then(async () => {
       if (run !== this.run || !this.sys.isActive()) return;
-      if (!this.d.demo) {
-        startAmbience();
-        this.sfx.whistle();
+      if (!this.d.demo) startAmbience();
+      if (this.raid) {
+        await this.cutscene((ctx) => raidIntro(this, ctx));
+        if (run !== this.run || !this.sys.isActive()) return;
       }
+      if (!this.d.demo) this.sfx.whistle();
       this.nextTurn();
     });
   }
@@ -244,6 +256,27 @@ export class PenaltyScene extends Phaser.Scene {
       ...(this.raid?.names ?? OPP_NAMES).map((name, i) => figureSkin(this, 'back', this.randomLook(), clubKit(opponent), { number: OPP_NUMBERS[i], name, ...this.raidOpts() })),
     ]);
     this.skins = { user, keeperOwn, keeperOpp, opp };
+    if (this.raid) {
+      [this.skins.captain, this.skins.userFront] = await Promise.all([
+        captainSkin(this, this.raid),
+        figureSkin(this, 'front', p.appearance, clubKit(club), { number: p.number, gear: p.gear }),
+      ]);
+    }
+  }
+
+  /** Roda uma cutscene de raid com a interface da partida escondida. */
+  private async cutscene(play: (ctx: RaidCtx) => Promise<void>) {
+    this.phase = 'wait';
+    this.setZonesVisible(false);
+    this.meterUi.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false));
+    this.drawGuardCols('off');
+    this.d.hud.hint('');
+    const player = new Kicker(this, KICKER_START.x, KICKER_START.y, this.skins.user).setScale(KICKER_START.scale).setDepth(30).setAlpha(0);
+    await play({
+      sp: this.raid!, stadium: this.stadium, sfx: this.sfx, player, playerName: this.d.player.name,
+      playerHead: this.skins.userFront!.head, captain: this.skins.captain!, celebration: this.d.player.celebration,
+    });
+    this.meterUi.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(true));
   }
 
   update(time: number) {
@@ -280,6 +313,9 @@ export class PenaltyScene extends Phaser.Scene {
 
     const m = this.d.match;
     this.d.hud.update(m);
+    this.target?.destroy();
+    this.target = undefined;
+    this.lastHit = false;
     if (m.turn === 'done') return this.finale();
     // Imprevisto entre cobranças: no máximo 1 por partida, nunca antes da primeira.
     // Só em desenvolvimento: window.__forceIncident = 'raid' (e __forceRaid = 'mars') forçam o próximo (testes visuais).
@@ -296,6 +332,8 @@ export class PenaltyScene extends Phaser.Scene {
       this.phase = 'wait';
       this.setZonesVisible(false);
       this.d.hud.hint('');
+      // Abdução é cutscene: some a barra de chute
+      if (special) this.meterUi.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false));
       void playIncident(this, kind, {
         stadium: this.stadium, ball: this.ball, ballRest: BALL_REST, sfx: this.sfx, special,
         toast: (title, sub) => !this.d.demo && this.showBanner(title, '#5bd8ff', sub, ''),
@@ -322,6 +360,7 @@ export class PenaltyScene extends Phaser.Scene {
     this.inputLockUntil = this.time.now + 300;
     this.setZonesVisible(!this.d.demo && user);
     this.drawGuardCols(user || this.d.demo ? 'off' : 'wait');
+    if (user && this.raid) this.target = new RaidTarget(this, this.raid, Math.floor(Math.random() * 5) as Zone);
 
     const pressure = m.pressure();
     this.pressureTag.setVisible(pressure >= 0.7).setText(pressure === 1 ? 'COBRANÇA DECISIVA' : 'PRESSÃO');
@@ -397,7 +436,14 @@ export class PenaltyScene extends Phaser.Scene {
       this.nextTurn();
     } else if (this.phase === 'final') {
       this.phase = 'wait';
-      this.d.onFinish(this.d.match.stats());
+      const stats = this.raid ? { ...this.d.match.stats(), targets: this.targetsHit } : this.d.match.stats();
+      if (!this.raid) return this.d.onFinish(stats);
+      this.banner.setVisible(false);
+      this.kicker?.destroy();
+      this.keeper?.destroy();
+      this.kicker = this.keeper = undefined;
+      const run = this.run;
+      void this.cutscene((ctx) => raidOutro(this, ctx, stats.won)).then(() => run === this.run && this.d.onFinish(stats));
     }
   }
 
@@ -435,12 +481,26 @@ export class PenaltyScene extends Phaser.Scene {
     this.phase = 'flight';
     this.refreshUi();
     const o = this.d.match.kickUser(this.zone, error, this.meterParams.halfWidth);
+    // Gol na zona do alvo: a bola passa por ele e o derruba
+    const hit = !!this.target && o.result === 'goal' && o.zone === this.target.zone;
     this.kicker!.runUp(KICKER_PLANT, () => {
       this.sfx.kick();
       const flight = flightMs(o.speed);
-      this.flyBall(o.point, flight, () => this.impact(o, true));
+      this.flyBall(o.point, flight, () => {
+        if (hit) this.knockTarget();
+        this.impact(o, true);
+      });
       this.time.delayedCall(70, () => this.diveKeeper(o, flight - 50));
     });
+  }
+
+  private knockTarget() {
+    this.target!.hit();
+    this.target = undefined;
+    this.targetsHit++;
+    this.lastHit = true;
+    this.sfx.post();
+    this.stadium.cheer(3);
   }
 
   private popGrade(label: string, color: string) {
@@ -639,7 +699,8 @@ export class PenaltyScene extends Phaser.Scene {
     const prompt = decided ? 'ESPAÇO ou clique para o apito final' : 'ESPAÇO ou clique para continuar';
     if (user) {
       const [title, color] = RESULT_LABEL[o.result];
-      this.showBanner(title, color, `${GRADE_LABEL[o.grade][0].replace('!', '')} · ${ZONE_NAMES[o.zone]} · ${score}`, prompt);
+      const hit = this.lastHit ? `ALVO DERRUBADO (${this.targetsHit}) · ` : '';
+      this.showBanner(this.lastHit ? 'GOL E ALVO!' : title, color, `${hit}${GRADE_LABEL[o.grade][0].replace('!', '')} · ${ZONE_NAMES[o.zone]} · ${score}`, prompt);
     } else {
       const k = o as DefendedKick;
       const [title, color] = DEFENSE_LABEL[o.result];
@@ -779,7 +840,8 @@ export class PenaltyScene extends Phaser.Scene {
       guard: 'VOCÊ NO GOL: espere o chute e veja a bola  ·  ← A esquerda  ·  ↓ S ou ESPAÇO centro  ·  → D direita  ·  ou clique no gol',
     };
     // Depois do chute o "REAJA!" sobre o gol já diz o que fazer.
-    this.d.hud.hint(this.phase === 'guard' && this.guard?.struck ? '' : hints[this.phase] ?? '');
+    const aimTarget = this.target && this.phase === 'aim' ? `ALVO na zona ${this.target.zone + 1}: gol nela derruba o alvo  ·  ` : '';
+    this.d.hud.hint(this.phase === 'guard' && this.guard?.struck ? '' : aimTarget + (hints[this.phase] ?? ''));
   }
 
   /**

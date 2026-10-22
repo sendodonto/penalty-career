@@ -29,6 +29,9 @@ npm run smoke      # teste E2E no Microsoft Edge instalado (BROWSER=chrome para 
 - Loja com o dinheiro do salário: chuteiras (as raras dão +1/+2 em atributos), segunda pele, meião baixo, faixa, munhequeira, luvas, cordão, braçadeira de capitão e comemorações de gol. Tudo aparece no jogador durante as partidas.
 - Clima por partida (chuva, neve na Europa, neblina) com efeito leve no jogo, e imprevistos raros entre as cobranças (no máximo um por partida): invasão de campo, cachorro no gramado, apagão e **raids**.
 - **Raids:** uma nave abduz o seu jogador no meio da disputa para uma partida especial: Raid Alienígena (Marte, Marcianos FC), Raid Ciborgue (Estação Orbital Ômega, Ciborgues United), Raid Canino (Planeta Latido, Matilha FC) e Raid Felino (Miaulópolis, Miau United). Vencer dá troféu, dinheiro e XP; depois você volta à Terra e a disputa original continua de onde parou.
+  - Cutscenes com barras de cinema e diálogos do capitão adversário na abdução, na chegada ao planeta e na volta.
+  - Alvo temático no gol a cada cobrança sua (nave-espiã, drone, osso voador, novelo): gol na zona do alvo o derruba, valendo $1.000 e XP.
+  - Itens exclusivos: vencer o raid dá uma chuteira temática com bônus (Marciana, Cromada T-800, Osso de Ouro, Sete Vidas); derrubar 3 alvos numa partida dá a segunda pele temática.
 - Em `npm run dev`, `window.__forceWeather = 'rain'`, `window.__forceIncident = 'raid'` e `window.__forceRaid = 'mars'` forçam clima e eventos para testes (não existem no build de produção).
 
 ## Jogar no celular

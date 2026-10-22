@@ -396,6 +396,24 @@ describe('Loja e clima', () => {
     expect(validateCareer(lost)).toBeNull();
   });
 
+  it('raid: vitória libera a chuteira exclusiva, 3 alvos a segunda pele; itens de raid não se compram', () => {
+    const c = createCareer(identity, seeded(1));
+    c.money = 1e6;
+    const s: MatchStats = { won: true, scoreFor: 5, scoreAgainst: 4, goals: 5, kicks: 5, decisiveGoals: 0, perfects: 0, topCornerGoals: 0, saves: 0, objectiveMet: true, userKicks: [], events: [], targets: 3 };
+    const { career, rewards } = applyRaid(c, s, 'cyborg');
+    expect(rewards.items).toEqual(['Cromada T-800', 'Segunda pele cromada']);
+    expect(career.money).toBe(c.money + 6000 + 3000);
+    expect(career.wardrobe!.owned).toEqual(['boots-cyborg', 'sleeves-cyborg']);
+    expect(equipped(career)).toEqual({});
+    // Repetir o raid não duplica itens
+    expect(applyRaid(career, s, 'cyborg').rewards.items).toEqual([]);
+    // Derrota com 2 alvos: nada exclusivo
+    expect(applyRaid(c, { ...s, won: false, targets: 2 }, 'dogs').rewards.items).toEqual([]);
+    expect(buyItem(c, 'boots-mars')).toEqual({ ok: false, reason: 'Item exclusivo de raid' });
+    const worn = toggleEquip(career, 'boots-cyborg');
+    expect(effectiveAttributes(worn).power).toBe(career.attributes.power + 2);
+  });
+
   it('imprevistos ficam raros e sem raid no menu', () => {
     for (let r = 0; r < 1; r += 0.01) expect(pickIncident(r, false)).not.toBe('raid');
     expect(pickIncident(0.99, true)).toBe('raid');

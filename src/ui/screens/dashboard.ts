@@ -246,12 +246,14 @@ function shopHtml(c: Career, cat: Category): string {
     const preview = item.slot === 'celebration' ? '' : figureSvg(c, { ...eq, [item.slot]: item.id }, 'item-preview', PREVIEW_BOX[item.slot]);
     const action = owned
       ? `<button class="btn small ${on ? 'ghost' : 'primary'}" data-a="equip:${item.id}">${on ? 'Tirar' : 'Usar'}</button>`
+      : item.raid ? '<button class="btn small" disabled>Raid</button>'
       : `<button class="btn small primary" data-a="buy:${item.id}" ${locked || c.money < item.price ? 'disabled' : ''}>${money(item.price)}</button>`;
-    return `<li class="shop-item ${on ? 'on' : ''}">
+    return `<li class="shop-item ${on ? 'on' : ''} ${item.raid ? 'raid-item' : ''}">
       <div class="item-art">${preview || `<span class="cel-name">${esc(item.name)}</span>`}</div>
       <div class="item-info"><b>${esc(item.name)}</b><small>${esc(item.desc)}</small>
         ${item.bonus ? `<em class="gear-bonus">${Object.entries(item.bonus).map(([k, v]) => `+${v} ${ATTR_LABELS[k as AttrKey]}`).join(' · ')}</em>` : ''}
-        ${locked ? `<em class="lock">Reputação ${item.minRep} necessária</em>` : on ? '<em class="in-use">Em uso</em>' : owned ? '<em class="owned">Comprado</em>' : ''}
+        ${item.raid && !owned ? '<em class="lock">Exclusivo de raid</em>' : locked ? `<em class="lock">Reputação ${item.minRep} necessária</em>`
+          : on ? '<em class="in-use">Em uso</em>' : owned ? `<em class="owned">${item.raid ? 'Ganho no raid' : 'Comprado'}</em>` : ''}
       </div>
       <div class="item-buy">${action}</div>
     </li>`;
@@ -265,7 +267,7 @@ function shopHtml(c: Career, cat: Category): string {
     <div class="panel shop-shelf">
       <div class="chips">${CATEGORIES.map((x) => `<button class="chip ${x === cat ? 'on' : ''}" data-a="cat:${x}">${x}</button>`).join('')}</div>
       <ul class="shop-items">${items.map(card).join('')}</ul>
-      <p class="muted small-note">Itens aparecem no seu jogador durante as partidas. Chuteiras raras dão um pequeno bônus de atributo.</p>
+      <p class="muted small-note">Itens aparecem no seu jogador durante as partidas. Chuteiras raras dão um pequeno bônus de atributo. Itens de raid só se ganham nas partidas contra outras espécies.</p>
     </div>
   </div>`;
 }

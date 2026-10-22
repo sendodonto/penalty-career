@@ -34,6 +34,17 @@ try {
   await page.click('[data-go]');
   await snap(page, '04-dashboard');
 
+  // Raid aleatório no meio da disputa: joga a partida especial, volta à Terra e segue a disputa original
+  let raids = 0;
+  const matchOver = async () => {
+    if (!(await page.locator('.result-head:visible').count())) return false;
+    if (!(await page.locator('[data-a="back"]:visible', { hasText: 'Voltar à Terra' }).count())) return true;
+    raids++;
+    console.log('Raid durante a partida: voltando à Terra');
+    await page.click('[data-a="back"]');
+    await page.waitForTimeout(600);
+    return false;
+  };
   const hint = () => page.locator('[data-hint]').textContent();
   const canvasPoint = async (x, y) => {
     const b = await page.locator('#canvas canvas').boundingBox();
@@ -47,8 +58,8 @@ try {
     await page.waitForSelector('#stage:not([hidden]) canvas');
     let kicks = 0;
     const t0 = Date.now();
-    while (!(await page.locator('.result-head').count())) {
-      if (Date.now() - t0 > 180000) throw new Error('partida não terminou');
+    while (!(await matchOver())) {
+      if (Date.now() - t0 > 420000) throw new Error('partida não terminou');
       const h = (await hint()) ?? '';
       if (h.includes('mirar')) {
         await page.waitForTimeout(350); // o jogo ignora confirmações nos primeiros 0,3 s de cada vez
@@ -99,7 +110,13 @@ try {
   const after = await page.evaluate(() => JSON.parse(localStorage.getItem('penalty-career/save')).career);
   console.log(`Atributos após ponto/treino: ${JSON.stringify(after.attributes)} (antes ${JSON.stringify(saved1.career.attributes)}), $${after.money}`);
 
+  // Força um raid (gancho só de desenvolvimento) para cobrir abdução, cutscenes, alvo e a volta à disputa
+  await page.evaluate(() => { window.__forceIncident = 'raid'; window.__forceRaid = 'mars'; });
   await playMatch(2, false);
+  if (!raids) fail('raid forçado não aconteceu');
+  const afterRaid = await page.evaluate(() => JSON.parse(localStorage.getItem('penalty-career/save')).career);
+  if (afterRaid.matchesPlayed !== 2) fail('a disputa retomada depois do raid não contou');
+  console.log(`Raid: ok, disputa retomada e salva (partidas = ${afterRaid.matchesPlayed})`);
 
   await page.reload();
   if (!(await page.locator('[data-a="continue"]').count())) fail('botão Continuar ausente após recarregar');

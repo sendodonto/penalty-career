@@ -1,7 +1,7 @@
 import { CLUBS, CONTINENTAL_CUPS, DOMESTIC_CUPS, getClub, getLeague, getTeam, STARTING_CLUB_ID } from '../data/clubs';
 import { COPA_AMERICA, COPA_AMERICA_TEAMS, EURO, nationByName, NATIONS, WORLD_CUP } from '../data/nations';
 import { gearBonus, getItem, type Equipped } from '../data/shop';
-import { EARTH, getSpecial, type SpecialId } from '../data/specials';
+import { EARTH, getSpecial, TARGETS_FOR_ITEM, type SpecialId } from '../data/specials';
 import type { AttrKey, Attributes, Career, Club, CompKind, Competition, MatchStats, Objective, Offer, PlayerIdentity, Rng, Team, Weather } from '../types';
 import { alive, fixtureFor, groupsComp, knockoutComp, leagueComp, maxMatches, playRound, positionOf, simulateRest, stageLabel, type Sim } from './Competition';
 import { simulateShootout, sortStandings } from './League';
@@ -194,6 +194,7 @@ export function buyItem(prev: Career, id: string): BuyResult {
   if (!item) return { ok: false, reason: 'Item inexistente' };
   const w = wardrobeOf(prev);
   if (w.owned.includes(id)) return { ok: false, reason: 'Você já tem este item' };
+  if (item.raid) return { ok: false, reason: 'Item exclusivo de raid' };
   if ((item.minRep ?? 0) > prev.reputation) return { ok: false, reason: `Disponível com reputação ${item.minRep}` };
   if (prev.money < item.price) return { ok: false, reason: 'Saldo insuficiente' };
   const c = structuredClone(prev);
@@ -245,7 +246,11 @@ export function matchSetup(c: Career, f: Fixture, weather: Weather = 'clear'): M
   };
 }
 
-export interface Rewards { xp: number; money: number; reputation: number; levelsGained: number; pointsGained: number; titles: string[] }
+export interface Rewards {
+  xp: number; money: number; reputation: number; levelsGained: number; pointsGained: number; titles: string[];
+  /** Itens exclusivos ganhos (raids) */
+  items?: string[];
+}
 
 /** Peso da divisão na reputação: brilhar na Premier League vale mais que na Série B. */
 const tierOf = (c: Career, kind: CompKind) => (kind === 'national' ? 3 : getLeague(leagueIdOf(c, c.clubId)).tier);
@@ -292,8 +297,9 @@ export function applyRaid(prev: Career, s: MatchStats, id: SpecialId): { career:
   const sp = getSpecial(id);
   if (!sp) throw new Error(`Raid desconhecido: ${id}`);
   const c: Career = structuredClone(prev);
-  const xp = 40 + s.goals * 10 + s.saves * 12 + (s.won ? 80 : 0);
-  const money = s.won ? 6000 : 1500;
+  const targets = s.targets ?? 0;
+  const xp = 40 + s.goals * 10 + s.saves * 12 + (s.won ? 80 : 0) + targets * 15;
+  const money = (s.won ? 6000 : 1500) + targets * 1000;
   const reputation = s.won ? 4 : 1;
   c.money += money;
   c.reputation = Math.min(100, c.reputation + reputation);
@@ -302,11 +308,16 @@ export function applyRaid(prev: Career, s: MatchStats, id: SpecialId): { career:
   c.stats.kicks += s.kicks;
   c.stats.saves += s.saves;
   if (s.won) c.trophies.push({ season: c.season, name: sp.trophy, clubId: EARTH.id });
+  // Itens exclusivos: vão para o armário (não equipa sozinho para não trocar o visual escolhido)
+  const w = wardrobeOf(c);
+  const won = [s.won && sp.rewards.win, targets >= TARGETS_FOR_ITEM && sp.rewards.targets].filter((id): id is string => !!id && !w.owned.includes(id));
+  c.wardrobe = { owned: [...w.owned, ...won], equipped: { ...w.equipped } };
+  const items = won.map((id) => getItem(id)!.name);
   c.news.unshift(s.won
     ? `${sp.title.replace('!', '')}: ${c.identity.name} vence o ${sp.team.name} (${s.scoreFor} x ${s.scoreAgainst}) e volta à Terra com a ${sp.trophy}!`
     : `${sp.title.replace('!', '')}: derrota para o ${sp.team.name} (${s.scoreFor} x ${s.scoreAgainst}), mas ${c.identity.name} voltou à Terra.`);
   c.news = c.news.slice(0, 14);
-  return { career: c, rewards: { xp, money, reputation, levelsGained, pointsGained: levelsGained * POINTS_PER_LEVEL, titles: s.won ? [sp.trophy] : [] } };
+  return { career: c, rewards: { xp, money, reputation, levelsGained, pointsGained: levelsGained * POINTS_PER_LEVEL, titles: s.won ? [sp.trophy] : [], items } };
 }
 
 /** Aplica o resultado da partida do jogador, avança a competição e a temporada. Retorna uma nova carreira. */

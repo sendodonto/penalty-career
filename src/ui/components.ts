@@ -1,5 +1,6 @@
 import { clubKit, figureMarkup, type Kit } from '../game/entities/figureArt';
 import { sfx } from '../game/audio';
+import { CRESTS } from '../game/data/crests';
 import type { Appearance, Team } from '../game/types';
 
 export const esc = (s: string) =>
@@ -7,8 +8,17 @@ export const esc = (s: string) =>
 
 export const money = (n: number) => `$ ${n.toLocaleString('pt-BR')}`;
 
-/** Escudo do clube desenhado em SVG a partir das cores. */
+/** Escudo real do clube (imagem externa); sem link ou se a imagem falhar, o escudo desenhado. */
 export function badge(club: Team, size = 48): string {
+  const drawn = drawnBadge(club, size);
+  const url = CRESTS[club.id];
+  return url
+    ? `<img class="badge" src="${url}" width="${size}" height="${size * 1.15}" alt="${esc(club.name)}" loading="lazy" style="object-fit:contain" data-fb="${esc(drawn)}" onerror="this.outerHTML=this.dataset.fb">`
+    : drawn;
+}
+
+/** Escudo do clube desenhado em SVG a partir das cores. */
+function drawnBadge(club: Team, size: number): string {
   return `<svg class="badge" width="${size}" height="${size * 1.15}" viewBox="0 0 40 46" aria-label="${esc(club.name)}" role="img">
     <clipPath id="shield-${club.id}"><path d="M20 1 L38 6 V22 C38 34 30 41 20 45 C10 41 2 34 2 22 V6 Z"/></clipPath>
     <path d="M20 1 L38 6 V22 C38 34 30 41 20 45 C10 41 2 34 2 22 V6 Z" fill="${club.primary}"/>

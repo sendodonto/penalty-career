@@ -26,7 +26,7 @@ const c = (
   primary: string, secondary: string, strength: number, minReputation: number,
 ): Club => ({ id, name, short, city, league, primary, secondary, strength, keeper: strength - 0.02, minReputation });
 
-// Escudos são desenhados pelo jogo (formas e cores); nomes e cores identificam os clubes.
+// Escudos reais em data/crests.ts (scripts/fetch-crests.mjs); sem link, o jogo desenha um com as cores.
 export const CLUBS: Club[] = [
   c('ituano', 'Ituano', 'ITU', 'Itu', 'br-b', '#c4161c', '#111111', 0.3, 0),
   c('crb', 'CRB', 'CRB', 'Maceió', 'br-b', '#d0111b', '#ffffff', 0.33, 0),

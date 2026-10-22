@@ -374,7 +374,7 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
   background: rgba(8, 11, 10, .9); border: 1px solid rgba(255, 255, 255, .1); border-radius: .7cqw; overflow: hidden; }
 .sb-team { display: flex; align-items: center; gap: .8cqw; padding: .6cqw 1cqw; }
 .sb-b { flex-direction: row-reverse; }
-.sb-team svg { width: 2.2cqw; height: auto; }
+.sb-team .badge { width: 2.2cqw; height: auto; }
 .sb-name { display: grid; line-height: 1.1; }
 .sb-b .sb-name { text-align: right; }
 .sb-name b { font-size: 1.5cqw; }
@@ -402,7 +402,7 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
 #stage.portrait .hud-btn { font-size: 3.2cqw; padding: 1.2cqw 2.4cqw; border-radius: 1.6cqw; }
 #stage.portrait .scoreboard { top: 13cqw; border-radius: 2cqw; }
 #stage.portrait .sb-team { gap: 1.8cqw; padding: 1.6cqw 2.4cqw; }
-#stage.portrait .sb-team svg { width: 6cqw; }
+#stage.portrait .sb-team .badge { width: 6cqw; }
 #stage.portrait .sb-name b { font-size: 4.6cqw; }
 #stage.portrait .sb-name span, #stage.portrait .sb-mid { display: none; }
 #stage.portrait .sb-dots { gap: .9cqw; }

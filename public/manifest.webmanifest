@@ -1,0 +1,10 @@
+{
+  "name": "Penalty Career",
+  "short_name": "Penalty",
+  "start_url": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#0c1210",
+  "theme_color": "#0c1210",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

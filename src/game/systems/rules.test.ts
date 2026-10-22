@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { MatchStats, PlayerIdentity, Zone } from '../types';
-import { applyMatch, buyItem, createCareer, effectiveAttributes, equipped, matchSetup, nextFixture, pickWeather, seasonOver, spendSkillPoint, startNextSeason, toggleEquip, train, trainingCost } from './Career';
+import { INCIDENT_CHANCE, pickIncident } from '../data/incidents';
+import { applyMatch, applyRaid, buyItem, createCareer, effectiveAttributes, equipped, matchSetup, nextFixture, pickWeather, seasonOver, spendSkillPoint, startNextSeason, toggleEquip, train, trainingCost } from './Career';
 import { alive, fixtureFor, groupsComp, knockoutComp, maxMatches, playRound, simulateRest, stageLabel } from './Competition';
 import { roundRobin } from './League';
 import { Match } from './MatchManager';
@@ -381,11 +382,31 @@ describe('Loja e clima', () => {
     expect(pickWeather(c, f, () => 0.28)).toBe('clear'); // neve só na Europa
   });
 
+  it('raid: vitória dá troféu da espécie, dinheiro e XP, sem mexer na temporada', () => {
+    const c = createCareer(identity, seeded(1));
+    const s: MatchStats = { won: true, scoreFor: 5, scoreAgainst: 4, goals: 5, kicks: 6, decisiveGoals: 1, perfects: 0, topCornerGoals: 0, saves: 1, objectiveMet: true, userKicks: [], events: [] };
+    const { career, rewards } = applyRaid(c, s, 'mars');
+    expect(rewards.titles).toEqual(['Copa Intergaláctica']);
+    expect(career.money).toBe(c.money + 6000);
+    expect(career.trophies.at(-1)).toMatchObject({ name: 'Copa Intergaláctica', clubId: 's-earth' });
+    expect(career.calendar).toEqual(c.calendar);
+    expect(career.news[0]).toMatch(/^RAID ALIENÍGENA: .* Marcianos FC/);
+    const lost = applyRaid(c, { ...s, won: false, scoreFor: 3, scoreAgainst: 4 }, 'raid').career;
+    expect(lost.trophies).toHaveLength(0);
+    expect(validateCareer(lost)).toBeNull();
+  });
+
+  it('imprevistos ficam raros e sem raid no menu', () => {
+    for (let r = 0; r < 1; r += 0.01) expect(pickIncident(r, false)).not.toBe('raid');
+    expect(pickIncident(0.99, true)).toBe('raid');
+    expect(INCIDENT_CHANCE).toBeLessThanOrEqual(0.05);
+  });
+
   it('imprevistos da partida viram notícia', () => {
     const c = createCareer(identity, seeded(1));
-    const s: MatchStats = { won: true, scoreFor: 4, scoreAgainst: 3, goals: 4, kicks: 5, decisiveGoals: 0, perfects: 0, topCornerGoals: 0, saves: 0, objectiveMet: false, userKicks: [], events: ['rain', 'ufo'] };
+    const s: MatchStats = { won: true, scoreFor: 4, scoreAgainst: 3, goals: 4, kicks: 5, decisiveGoals: 0, perfects: 0, topCornerGoals: 0, saves: 0, objectiveMet: false, userKicks: [], events: ['rain', 'raid'] };
     const next = applyMatch(c, s, seeded(2)).career;
-    expect(next.news[0]).toMatch(/^Disco voador é visto sobre o estádio em Ituano x /);
+    expect(next.news[0]).toMatch(/^Raid! O cobrador foi abduzido no meio da disputa em Ituano x /);
   });
 });
 

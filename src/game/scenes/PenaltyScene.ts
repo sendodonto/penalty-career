@@ -4,7 +4,8 @@ import { BOOT_COLORS, FONT, HAIR_COLORS, HAIR_STYLES, KEEPER_KITS, SKIN_TONES } 
 import { IS_TOUCH } from '../device';
 import type { GearVisual } from '../data/shop';
 import { clubKit, figureSkin, type FigureSkin, type Kit } from '../entities/figureArt';
-import { pickIncident, playIncident, weatherFx, type Incident } from './MatchEvents';
+import { getSpecial, SPECIALS, type Special, type SpecialId } from '../data/specials';
+import { INCIDENT_CHANCE, pickIncident, playIncident, weatherFx, type Incident } from './MatchEvents';
 import { Ball, hex, Keeper, Kicker } from '../entities/Figures';
 import { GOAL, SPOT, Stadium, toScreen } from '../entities/Stadium';
 import { REACTION } from '../systems/GoalkeeperAI';
@@ -26,6 +27,12 @@ export interface PenaltySceneData {
   onFinish(stats: MatchStats): void;
   /** Fundo animado do menu: os dois lados jogam sozinhos, sem som nem interface. */
   demo?: boolean;
+  /** Partida de raid: estádio temático e adversários da espécie */
+  special?: SpecialId;
+  /** Sem imprevistos (partidas de raid e a disputa retomada depois de um) */
+  noIncidents?: boolean;
+  /** O jogador foi abduzido: o app pausa esta disputa e abre a partida do raid */
+  onRaid?(id: SpecialId): void;
 }
 
 const SILENT = Object.fromEntries(Object.keys(sfx).map((k) => [k, () => {}])) as typeof sfx;
@@ -167,10 +174,11 @@ export class PenaltyScene extends Phaser.Scene {
   create() {
     const { club, opponent } = this.d.match.setup;
     // No menu o lance fica à direita, livre do logo e dos botões.
-    this.stadium = new Stadium(this, [club.primary, club.secondary], [opponent.primary, opponent.secondary]);
+    const sp = this.raid;
+    this.stadium = new Stadium(this, [club.primary, club.secondary], [opponent.primary, opponent.secondary], sp?.theme, sp?.species);
     const weather = this.d.match.setup.weather;
     weatherFx(this, weather);
-    if (weather !== 'clear') this.d.match.events.push(weather);
+    if (weather !== 'clear' && !this.d.match.events.includes(weather)) this.d.match.events.push(weather);
 
     this.shadow = this.add.ellipse(BALL_REST.x, SPOT.y + 1, 18, 6, 0x000000, 0.35).setDepth(5);
     this.ball = new Ball(this, BALL_REST.x, BALL_REST.y).setDepth(20);
@@ -215,6 +223,16 @@ export class PenaltyScene extends Phaser.Scene {
     });
   }
 
+  private get raid(): Special | undefined {
+    return this.d.special ? getSpecial(this.d.special) : undefined;
+  }
+
+  /** Espécie e cor de pele/pelo/metal sorteada para um jogador do time do raid. */
+  private raidOpts() {
+    const sp = this.raid;
+    return sp ? { species: sp.species, skinColor: sp.skins[Math.floor(Math.random() * sp.skins.length)] } : {};
+  }
+
   /** Arte dos personagens da partida: você, cinco cobradores adversários e os dois goleiros. */
   private async loadSkins() {
     const { club, opponent } = this.d.match.setup;
@@ -222,8 +240,8 @@ export class PenaltyScene extends Phaser.Scene {
     const [user, keeperOwn, keeperOpp, ...opp] = await Promise.all([
       figureSkin(this, 'back', p.appearance, clubKit(club), { number: p.number, name: p.name.split(' ').pop(), gear: p.gear }),
       figureSkin(this, 'front', this.randomLook(), keeperKit(club)),
-      figureSkin(this, 'front', this.randomLook(), keeperKit(opponent)),
-      ...OPP_NAMES.map((name, i) => figureSkin(this, 'back', this.randomLook(), clubKit(opponent), { number: OPP_NUMBERS[i], name })),
+      figureSkin(this, 'front', this.randomLook(), keeperKit(opponent), this.raidOpts()),
+      ...(this.raid?.names ?? OPP_NAMES).map((name, i) => figureSkin(this, 'back', this.randomLook(), clubKit(opponent), { number: OPP_NUMBERS[i], name, ...this.raidOpts() })),
     ]);
     this.skins = { user, keeperOwn, keeperOpp, opp };
   }
@@ -263,12 +281,14 @@ export class PenaltyScene extends Phaser.Scene {
     const m = this.d.match;
     this.d.hud.update(m);
     if (m.turn === 'done') return this.finale();
-    // Imprevisto entre cobranças: no máximo 2 por partida, nunca antes da primeira.
-    // Só em desenvolvimento: window.__forceIncident = 'ufo' força o próximo imprevisto (testes visuais).
-    const dev = import.meta.env.DEV ? (window as unknown as { __forceIncident?: Incident }) : undefined;
+    // Imprevisto entre cobranças: no máximo 1 por partida, nunca antes da primeira.
+    // Só em desenvolvimento: window.__forceIncident = 'raid' (e __forceRaid = 'mars') forçam o próximo (testes visuais).
+    const dev = import.meta.env.DEV ? (window as unknown as { __forceIncident?: Incident; __forceRaid?: SpecialId }) : undefined;
     const forced = dev?.__forceIncident;
-    if (!afterIncident && this.turns > 0 && (forced || (this.incidents < 2 && Math.random() < (this.d.demo ? 0.18 : 0.12)))) {
-      const kind = forced ?? pickIncident(Math.random());
+    const allowRaid = !!this.d.onRaid && !this.d.demo;
+    if (!afterIncident && this.turns > 0 && !this.d.noIncidents && (forced || (this.incidents < 1 && Math.random() < INCIDENT_CHANCE))) {
+      const kind = forced ?? pickIncident(Math.random(), allowRaid);
+      const special = kind === 'raid' ? getSpecial(dev?.__forceRaid ?? '') ?? SPECIALS[Math.floor(Math.random() * SPECIALS.length)] : undefined;
       if (dev) delete dev.__forceIncident;
       const run = this.run;
       this.incidents++;
@@ -277,9 +297,14 @@ export class PenaltyScene extends Phaser.Scene {
       this.setZonesVisible(false);
       this.d.hud.hint('');
       void playIncident(this, kind, {
-        stadium: this.stadium, ball: this.ball, ballRest: BALL_REST, sfx: this.sfx,
+        stadium: this.stadium, ball: this.ball, ballRest: BALL_REST, sfx: this.sfx, special,
         toast: (title, sub) => !this.d.demo && this.showBanner(title, '#5bd8ff', sub, ''),
-      }).then(() => run === this.run && this.sys.isActive() && this.nextTurn(true));
+        spawnPlayer: async () => new Kicker(this, KICKER_START.x, KICKER_START.y, this.skins.user).setScale(KICKER_START.scale).setDepth(30),
+      }).then(() => {
+        if (run !== this.run || !this.sys.isActive()) return;
+        if (special && this.d.onRaid) return this.d.onRaid(special.id);
+        this.nextTurn(true);
+      });
       return;
     }
     this.turns++;
@@ -293,6 +318,7 @@ export class PenaltyScene extends Phaser.Scene {
       .setScale(KICKER_START.scale).setDepth(30).setAlpha(0);
     this.tweens.add({ targets: this.kicker, alpha: 1, duration: 220 });
     this.kicker.idle();
+    if (!user && this.raid) this.speech(this.raid.taunts[Math.floor(Math.random() * this.raid.taunts.length)]);
     this.inputLockUntil = this.time.now + 300;
     this.setZonesVisible(!this.d.demo && user);
     this.drawGuardCols(user || this.d.demo ? 'off' : 'wait');
@@ -564,7 +590,7 @@ export class PenaltyScene extends Phaser.Scene {
         onComplete: () => this.stadium.drawNet(null, 0),
       });
       tw.add({ targets: this.ball, y: GOAL.ground - 26, duration: 520, delay: 200, ease: 'Bounce.out' });
-      this.kicker!.celebrate(user ? this.d.player.celebration : undefined);
+      this.kicker!.celebrate(user ? this.d.player.celebration : this.raid ? 'cel-dance' : undefined);
       if (user) {
         this.stadium.cheer(4);
         this.burstConfetti(25);
@@ -644,6 +670,20 @@ export class PenaltyScene extends Phaser.Scene {
       `${m.setup.club.short} ${m.shootout.goals('a')} x ${m.shootout.goals('b')} ${m.setup.opponent.short}`, 'ESPAÇO ou clique para ver o resultado');
     this.phase = 'final';
     this.refreshUi();
+  }
+
+  /** Balão de fala sobre o cobrador adversário (raids). */
+  private speech(text: string) {
+    const label = this.add.text(0, 0, text, { fontFamily: FONT, fontSize: '17px', fontStyle: 'bold', color: '#14110a', wordWrap: { width: 220 }, align: 'center' })
+      .setOrigin(0.5).setResolution(2);
+    const w = label.width + 26;
+    const h = label.height + 16;
+    const bg = this.add.graphics().fillStyle(0xffffff).lineStyle(2, 0x17110d)
+      .fillRoundedRect(-w / 2, -h / 2, w, h, 12).strokeRoundedRect(-w / 2, -h / 2, w, h, 12)
+      .fillTriangle(-10, h / 2 - 1, 8, h / 2 - 1, -18, h / 2 + 16).lineBetween(-10, h / 2, -18, h / 2 + 16).lineBetween(8, h / 2, -18, h / 2 + 16);
+    const bubble = this.add.container(KICKER_START.x + 120, KICKER_START.y - 230, [bg, label]).setDepth(55).setScale(0.6).setAlpha(0);
+    this.tweens.add({ targets: bubble, scale: 1, alpha: 1, duration: 220, ease: 'Back.out' });
+    this.tweens.add({ targets: bubble, alpha: 0, delay: 1700, duration: 300, onComplete: () => bubble.destroy() });
   }
 
   /** Confete caindo das arquibancadas, longe do gol para não esconder o lance. */

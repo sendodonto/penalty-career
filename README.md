@@ -27,8 +27,9 @@ npm run smoke      # teste E2E no Microsoft Edge instalado (BROWSER=chrome para 
 
 - Painel da carreira com abas: Visão geral, Jogador, Competições, Loja e Carreira.
 - Loja com o dinheiro do salário: chuteiras (as raras dão +1/+2 em atributos), segunda pele, meião baixo, faixa, munhequeira, luvas, cordão, braçadeira de capitão e comemorações de gol. Tudo aparece no jogador durante as partidas.
-- Clima por partida (chuva, neve na Europa, neblina) com efeito leve no jogo, e imprevistos entre as cobranças: invasão de campo, cachorro no gramado, apagão e disco voador. Os mais curiosos viram notícia.
-- Em `npm run dev`, `window.__forceWeather = 'rain'` e `window.__forceIncident = 'ufo'` forçam clima e imprevisto para testes (não existem no build de produção).
+- Clima por partida (chuva, neve na Europa, neblina) com efeito leve no jogo, e imprevistos raros entre as cobranças (no máximo um por partida): invasão de campo, cachorro no gramado, apagão e **raids**.
+- **Raids:** uma nave abduz o seu jogador no meio da disputa para uma partida especial: Raid Alienígena (Marte, Marcianos FC), Raid Ciborgue (Estação Orbital Ômega, Ciborgues United), Raid Canino (Planeta Latido, Matilha FC) e Raid Felino (Miaulópolis, Miau United). Vencer dá troféu, dinheiro e XP; depois você volta à Terra e a disputa original continua de onde parou.
+- Em `npm run dev`, `window.__forceWeather = 'rain'`, `window.__forceIncident = 'raid'` e `window.__forceRaid = 'mars'` forçam clima e eventos para testes (não existem no build de produção).
 
 ## Jogar no celular
 

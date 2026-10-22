@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { BOOT_COLORS, HAIR_COLORS, SKIN_TONES } from '../data/appearance';
 import { gearKey, type GearVisual } from '../data/shop';
+import type { Species } from '../data/specials';
 import type { Appearance, Team } from '../types';
 
 /** Cores do uniforme em CSS (#rrggbb). */
@@ -8,7 +9,8 @@ export interface Kit { shirt: string; trim: string; shorts: string; socks: strin
 /** Textura de uma peça e o ponto de articulação (origem) dentro dela. */
 export interface Part { key: string; ox: number; oy: number }
 /** `armL` difere de `arm` só quando há braçadeira (vai no braço esquerdo). */
-export interface FigureSkin { leg: Part; shorts: Part; torso: Part; arm: Part; armL: Part; head: Part }
+/** `headScale`: espécies dos raids são cabeçudas de propósito (caricatura). */
+export interface FigureSkin { leg: Part; shorts: Part; torso: Part; arm: Part; armL: Part; head: Part; headScale: number }
 /** back = visto de costas (cobrador na partida); front = de frente (goleiro, retratos). */
 export type View = 'back' | 'front';
 
@@ -70,8 +72,17 @@ function legSvg(view: View, skin: string, kit: Kit, boot: string, bootAccent: st
 // ---------- Calção (cintura em 0,0) ----------
 const SHORTS = 'M-15 0L15 0L16.8 17.4Q9 20.6 1.3 17.2L0 11L-1.3 17.2Q-9 20.6-16.8 17.4Z';
 
-function shortsSvg(kit: Kit): string {
-  return `<defs><clipPath id="c"><path d="${SHORTS}"/></clipPath></defs>
+/** Rabo saindo do calção (raids de cachorros e gatos), visível de costas. */
+function tailSvg(species: Species | undefined, fur: string, view: View): string {
+  if (view !== 'back' || (species !== 'dog' && species !== 'cat')) return '';
+  const d = species === 'cat' ? 'M2 12C10 10 16 2 14-10C13-15 9-15 9-11C11-2 7 6 1 8Z' : 'M1 10C8 9 13 4 12-3C14 2 10 13 1 13Z';
+  const tip = species === 'cat' ? `<circle cx="11.5" cy="-11.5" r="2.6" fill="${light(fur, 0.35)}"/>` : '';
+  // Desloca para baixo e para fora do calção: senão a camisa cobre o rabo.
+  return `<g transform="translate(13 7)"><path d="${d}" fill="${fur}" stroke="${OL}" stroke-width="1.1" stroke-linejoin="round"/>${tip}</g>`;
+}
+
+function shortsSvg(kit: Kit, tail = ''): string {
+  return `${tail}<defs><clipPath id="c"><path d="${SHORTS}"/></clipPath></defs>
     <path d="${SHORTS}" fill="${kit.shorts}"/>
     <g clip-path="url(#c)">
       <rect x="-19" y="-2" width="38" height="4.4" fill="${dark(kit.shorts, 0.2)}"/>
@@ -234,26 +245,82 @@ function headSvg(view: View, skin: string, hair: string, style: number, trim: st
     ${top}${headband ? `<path d="M-11-9.4Q0-12.6 11-9.4L11.2-6.2Q0-9.4 -11.2-6.2Z" fill="${headband}" stroke="${OL}" stroke-width=".8"/>` : ''}`;
 }
 
+// ---------- Cabeças dos raids (bem caricatas de propósito) ----------
+function speciesHead(view: View, sp: Species, skin: string): string {
+  const back = view === 'back';
+  const outline = (d: string, fill: string) => `<path d="${d}" fill="${fill}" stroke="${OL}" stroke-width="1.2" stroke-linejoin="round"/>`;
+  if (sp === 'alien') {
+    // Cabeção em gota, olhões pretos e anteninhas com bolinhas
+    const head = 'M-13-6C-13-19-7-23 0-23C7-23 13-19 13-6C13 4 6 12 0 12.6C-6 12-13 4-13-6Z';
+    const antennae = [-1, 1].map((x) => `<path d="M${x * 4}-21Q${x * 8}-30 ${x * 11}-31" fill="none" stroke="${OL}" stroke-width="1.4"/>
+      <circle cx="${x * 11}" cy="-31" r="2.6" fill="#ffd23f" stroke="${OL}" stroke-width=".9"/>`).join('');
+    if (back) return `${antennae}${outline(head, skin)}<path d="M-6-18Q0-21 6-18" fill="none" stroke="${light(skin, 0.4)}" stroke-width="1.4" stroke-linecap="round"/>`;
+    const eyes = [-1, 1].map((x) => `<ellipse cx="${x * 5.6}" cy="-5" rx="5" ry="3.2" transform="rotate(${x * 24} ${x * 5.6} -5)" fill="#0d0d12"/>
+      <circle cx="${x * 5.6 + 1.4}" cy="-6" r="1.1" fill="#fff"/><circle cx="${x * 5.6 - 1.2}" cy="-4" r=".6" fill="#fff"/>`).join('');
+    return `${antennae}${outline(head, skin)}${eyes}
+      <path d="M-2.4 5Q0 6.8 2.4 5" fill="none" stroke="${OL}" stroke-width=".9" stroke-linecap="round"/>
+      <ellipse cx="-9.5" cy="2" rx="2.2" ry="1.3" fill="#ff7ad9" opacity=".45"/><ellipse cx="9.5" cy="2" rx="2.2" ry="1.3" fill="#ff7ad9" opacity=".45"/>`;
+  }
+  if (sp === 'cyborg') {
+    // Cabeça metálica com rebites, visor vermelho e anteninha piscante
+    const head = 'M-11-12Q-11-16-7-16L7-16Q11-16 11-12L11 6Q11 12 4 12.6L-4 12.6Q-11 12-11 6Z';
+    const rivets = [[-8.6, -13.4], [8.6, -13.4], [-8.6, 9.6], [8.6, 9.6]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1" fill="${dark(skin, 0.4)}"/>`).join('');
+    const bolts = [-1, 1].map((x) => `<rect x="${x > 0 ? 10.4 : -13.4}" y="-3" width="3" height="6" rx="1" fill="${dark(skin, 0.25)}" stroke="${OL}" stroke-width=".8"/>`).join('');
+    const antenna = `<path d="M5-16L7-23" stroke="${OL}" stroke-width="1.2"/><circle cx="7" cy="-23.6" r="1.8" fill="#ff3b3b" stroke="${OL}" stroke-width=".6"/>`;
+    if (back) return `${antenna}${bolts}${outline(head, skin)}${rivets}<path d="M-11-2L11-2M0-16L0 12" stroke="${dark(skin, 0.2)}" stroke-width=".8"/>`;
+    return `${antenna}${bolts}${outline(head, skin)}${rivets}
+      <rect x="-10" y="-6" width="20" height="5" rx="2.5" fill="#2a0607" stroke="${OL}" stroke-width=".8"/>
+      <rect x="-8.6" y="-4.8" width="9" height="2.6" rx="1.3" fill="#ff3b3b"/><rect x="-7.6" y="-4.4" width="3" height="1" fill="#ffd0d0"/>
+      <path d="M-4.6 5.4h9.2M-4.6 7.6h9.2" stroke="${dark(skin, 0.45)}" stroke-width="1" stroke-linecap="round"/>
+      <path d="M2-12L6-12L8-9" fill="none" stroke="${dark(skin, 0.3)}" stroke-width=".7"/>`;
+  }
+  if (sp === 'dog') {
+    // Orelhas caídas, focinho, nariz brilhante e língua de fora
+    const ears = [-1, 1].map((x) => `<ellipse cx="${x * 11.4}" cy="1" rx="3.8" ry="8.6" transform="rotate(${x * -12} ${x * 11.4} 1)" fill="${dark(skin, 0.35)}" stroke="${OL}" stroke-width="1.1"/>`).join('');
+    if (back) return `${outline(FACE, skin)}${ears}<path d="M-5-11Q0-13.5 5-11" fill="none" stroke="${light(skin, 0.3)}" stroke-width="1.3" stroke-linecap="round"/>`;
+    const eyes = [-1, 1].map((x) => `<circle cx="${x * 4.4}" cy="-3.4" r="2" fill="#1a120c"/><circle cx="${x * 4.4 + 0.7}" cy="-4.1" r=".7" fill="#fff"/>
+      <path d="M${x * 6.6}-7.6Q${x * 4.4}-9.4 ${x * 2.2}-7.8" fill="none" stroke="${OL}" stroke-width="1" stroke-linecap="round"/>`).join('');
+    return `${outline(FACE, skin)}${ears}${eyes}
+      <ellipse cx="0" cy="4.2" rx="6.4" ry="4.6" fill="${light(skin, 0.45)}" stroke="${OL}" stroke-width=".9"/>
+      <ellipse cx="0" cy="1.6" rx="2.6" ry="1.8" fill="#17110d"/><circle cx="-.8" cy="1" r=".6" fill="#fff"/>
+      <path d="M-2.6 6.4Q0 7.8 2.6 6.4" fill="none" stroke="${OL}" stroke-width=".9"/>
+      <path d="M-1.6 7.2Q-1.8 12 0 12.4Q1.8 12 1.6 7.2Z" fill="#ff6f91" stroke="${OL}" stroke-width=".7"/>`;
+  }
+  // Gato: orelhas pontudas, olhos de fenda, bigodes e boquinha em "w"
+  const ears = [-1, 1].map((x) => `<path d="M${x * 4}-12.6L${x * 10.6}-21L${x * 10.8}-8Z" fill="${skin}" stroke="${OL}" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M${x * 6}-12L${x * 9.6}-17.6L${x * 9.6}-10Z" fill="#ff9fc4"/>`).join('');
+  const stripes = `<path d="M-3-14.4L-2.4-10M0-14.6L0-10.4M3-14.4L2.4-10" stroke="${dark(skin, 0.3)}" stroke-width="1.1" stroke-linecap="round"/>`;
+  if (back) return `${ears}${outline(FACE, skin)}${stripes}`;
+  const eyes = [-1, 1].map((x) => `<ellipse cx="${x * 4.4}" cy="-2.6" rx="2.6" ry="2.2" fill="#d9e85a" stroke="${OL}" stroke-width=".6"/>
+    <ellipse cx="${x * 4.4}" cy="-2.6" rx=".6" ry="1.9" fill="#111"/>`).join('');
+  const whiskers = [-1, 1].map((x) => `<path d="M${x * 5}3.4L${x * 13}1.6M${x * 5}4.6L${x * 13}5M${x * 5}5.8L${x * 12}8" stroke="${OL}" stroke-width=".55"/>`).join('');
+  return `${ears}${outline(FACE, skin)}${stripes}${eyes}${whiskers}
+    <path d="M-1.4 1.6L1.4 1.6L0 3.2Z" fill="#ff7aa8" stroke="${OL}" stroke-width=".5"/>
+    <path d="M-3 4.6Q-1.5 6.2 0 4.6Q1.5 6.2 3 4.6" fill="none" stroke="${OL}" stroke-width=".8" stroke-linecap="round"/>`;
+}
+
 // ---------- Personagem completo ----------
 
-export interface FigureOpts { number?: number; name?: string; keeper?: boolean; gear?: GearVisual }
+/** `species`/`skinColor`: jogadores dos raids (cabeça e pele/pelo/metal próprios). */
+export interface FigureOpts { number?: number; name?: string; keeper?: boolean; gear?: GearVisual; species?: Species; skinColor?: string }
 
 function partsArt(view: View, look: Appearance, kit: Kit, o: FigureOpts) {
-  const skin = SKIN_TONES[look.skin] ?? SKIN_TONES[0];
+  const skin = o.skinColor ?? SKIN_TONES[look.skin] ?? SKIN_TONES[0];
   const hair = HAIR_COLORS[look.hairColor] ?? HAIR_COLORS[0];
   const g = o.gear ?? {};
   const boot = g.boots?.color ?? BOOT_COLORS[look.boots ?? 0] ?? BOOT_COLORS[0];
   const keeper = o.keeper ?? view === 'front';
   const gk = keeper ? '' : gearKey(g);
-  const k = (part: string, ...p: unknown[]) => `fig-${part}-${view}-${keeper ? 'gk' : 'pl'}-${p.join('-')}-${gk}`;
+  const k = (part: string, ...p: unknown[]) => `fig-${part}-${view}-${keeper ? 'gk' : 'pl'}-${o.species ?? 'h'}-${p.join('-')}-${gk}`;
   const part = (key: string, vb: VB, body: string): PartArt => ({ key, vb, body });
   return {
     leg: part(k('leg', skin, kit.socks, kit.trim, boot), [-9, -3, 18, 59], legSvg(view, skin, kit, boot, g.boots?.accent, !!g.socksLow)),
-    shorts: part(k('shorts', kit.shorts, kit.trim), [-19, -2, 38, 24], shortsSvg(kit)),
+    shorts: part(k('shorts', kit.shorts, kit.trim, skin), [-19, -12, 52, 36], shortsSvg(kit, tailSvg(o.species, skin, view))),
     torso: part(k('torso', skin, kit.shirt, kit.trim, o.number ?? '', o.name ?? ''), [-21, -52, 42, 59], torsoSvg(view, keeper, skin, kit, o.number, o.name, keeper ? undefined : g.necklace)),
     arm: part(k('arm', skin, kit.shirt, kit.trim), [-9, -7, 18, 53], armSvg(keeper, skin, kit, keeper ? {} : g)),
     armL: part(k('armL', skin, kit.shirt, kit.trim), [-9, -7, 18, 53], armSvg(keeper, skin, kit, keeper ? {} : g, true)),
-    head: part(k('head', skin, hair, look.hair, kit.trim), [-20, -26, 40, 48], headSvg(view, skin, hair, look.hair, kit.trim, keeper ? undefined : g.headband)),
+    head: part(k('head', skin, hair, look.hair, kit.trim), [-20, -34, 40, 56],
+      o.species ? speciesHead(view, o.species, skin) : headSvg(view, skin, hair, look.hair, kit.trim, keeper ? undefined : g.headband)),
   };
 }
 
@@ -285,7 +352,7 @@ function texture(scene: Phaser.Scene, { key, vb, body }: PartArt): Promise<Part>
 export async function figureSkin(scene: Phaser.Scene, view: View, look: Appearance, kit: Kit, o: FigureOpts = {}): Promise<FigureSkin> {
   const a = partsArt(view, look, kit, o);
   const [leg, shorts, torso, arm, armL, head] = await Promise.all([a.leg, a.shorts, a.torso, a.arm, a.armL, a.head].map((p) => texture(scene, p)));
-  return { leg, shorts, torso, arm, armL, head };
+  return { leg, shorts, torso, arm, armL, head, headScale: o.species ? 1.22 : 0.9 };
 }
 
 let uid = 0;

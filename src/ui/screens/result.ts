@@ -1,5 +1,4 @@
 import { sfx } from '../../game/audio';
-import { getTeam } from '../../game/data/clubs';
 import { seasonOver } from '../../game/systems/Career';
 import { EVENT_LABEL } from '../../game/scenes/MatchEvents';
 import { ZONE_NAMES } from '../../game/systems/PenaltyResolver';
@@ -17,8 +16,8 @@ export function renderResult(app: App): HTMLElement {
     return el('<section class="screen"></section>');
   }
   const { stats: s, rewards: w, career: c } = r;
-  const club = getTeam(r.teamId);
-  const opp = getTeam(r.opponentId);
+  const club = r.team;
+  const opp = r.opponent;
   const view = el(`<section class="screen narrow result">
     <div class="panel result-head ${s.won ? 'won' : 'lost'}">
       <p class="kicker-line">${s.won ? 'Vitória' : 'Derrota'} · ${esc(r.comp)} · ${esc(r.stage)}</p>
@@ -47,8 +46,11 @@ export function renderResult(app: App): HTMLElement {
         ${seasonOver(c) ? '<div class="levelup"><b>Fim da temporada</b><span>Veja o resumo e as propostas da janela de transferências no painel.</span></div>' : ''}
       </div>
     </div>
-    <button class="btn primary big wide" data-a="back">Voltar ao painel</button>
+    <button class="btn primary big wide" data-a="back">${r.raid ? 'Voltar à Terra e retomar a disputa' : 'Voltar ao painel'}</button>
   </section>`);
-  view.querySelector('[data-a="back"]')!.addEventListener('click', () => { sfx.click(); app.go('dashboard'); });
+  view.querySelector('[data-a="back"]')!.addEventListener('click', () => {
+    sfx.click();
+    if (r.raid) app.resumeMatch(); else app.go('dashboard');
+  });
   return view;
 }

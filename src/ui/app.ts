@@ -3,12 +3,13 @@ import { isMuted, setMuted, sfx } from '../game/audio';
 import { PenaltyScene, type Hud, type PenaltySceneData } from '../game/scenes/PenaltyScene';
 import { CLUBS, getClub } from '../game/data/clubs';
 import { gearVisual, type Category } from '../game/data/shop';
-import { applyMatch, equipped, matchSetup, nextFixture, pickWeather, type Fixture, type Rewards } from '../game/systems/Career';
+import { EARTH, getSpecial, type SpecialId } from '../game/data/specials';
+import { applyMatch, applyRaid, effectiveAttributes, equipped, matchSetup, nextFixture, pickWeather, type Fixture, type Rewards } from '../game/systems/Career';
 import { Match } from '../game/systems/MatchManager';
 import { keeperFromRating } from '../game/systems/PenaltyResolver';
 import { loadCareer, saveCareer, saveSettings, type LoadResult } from '../game/systems/SaveManager';
 import { IS_TOUCH } from '../game/device';
-import type { Career, MatchStats, Weather } from '../game/types';
+import type { Career, MatchStats, Team, Weather } from '../game/types';
 import { badge, esc, toast } from './components';
 import { renderCreate } from './screens/create';
 import { renderDashboard, type HubTab } from './screens/dashboard';
@@ -19,8 +20,8 @@ import { renderSettings } from './screens/settings';
 
 export type ScreenName = 'menu' | 'create' | 'dashboard' | 'prep' | 'result' | 'settings';
 
-/** Resultado da última partida para a tela de resultado (time do jogador: clube ou seleção). */
-export interface LastResult { stats: MatchStats; rewards: Rewards; teamId: string; opponentId: string; comp: string; stage: string; career: Career }
+/** Resultado da última partida para a tela de resultado (time do jogador: clube, seleção ou Terra num raid). */
+export interface LastResult { stats: MatchStats; rewards: Rewards; team: Team; opponent: Team; comp: string; stage: string; career: Career; raid?: boolean }
 
 export class App {
   career: Career | null = null;
@@ -30,6 +31,8 @@ export class App {
   hubTab: HubTab = 'overview';
   shopCat: Category = 'Chuteiras';
   private game: Phaser.Game | null = null;
+  /** Disputa da carreira suspensa enquanto o jogador está num raid */
+  private paused: PenaltySceneData | null = null;
   private screenEl: HTMLElement;
   private stageEl: HTMLElement;
   private hudEl: HTMLElement;
@@ -105,8 +108,42 @@ export class App {
       },
       hud: this.hud(),
       onFinish: (stats) => this.finishMatch(stats, fixture),
+      onRaid: (id) => this.startRaid(id, data),
     };
     this.runScene(data, false);
+  }
+
+  /** Raid: suspende a disputa (o objeto Match guarda o placar) e abre a partida contra a outra espécie. */
+  private startRaid(id: SpecialId, paused: PenaltySceneData): void {
+    const sp = getSpecial(id)!;
+    this.paused = paused;
+    const match = new Match({
+      club: EARTH, opponent: sp.team, attrs: effectiveAttributes(this.career!), difficulty: 0.62,
+      oppSkill: sp.team.strength, oppKeeper: keeperFromRating(sp.team.keeper), ownKeeper: keeperFromRating(EARTH.keeper),
+      objective: { id: 'win', text: `Vença e volte para a Terra · ${sp.place}` }, weather: 'clear',
+    });
+    this.renderHudShell(match);
+    this.runScene({
+      match, player: paused.player, hud: this.hud(), special: id, noIncidents: true,
+      onFinish: (stats) => {
+        this.game?.scene.stop('penalty');
+        const { career, rewards } = applyRaid(this.career!, stats, id);
+        this.commit(career);
+        this.lastResult = { stats, rewards, team: EARTH, opponent: sp.team, comp: sp.title.replace('!', ''), stage: sp.place, career, raid: true };
+        sfx.transition();
+        this.go('result');
+      },
+    }, false);
+  }
+
+  /** Volta à Terra: retoma a disputa da carreira de onde parou, sem novos imprevistos. */
+  resumeMatch(): void {
+    const data = this.paused;
+    this.paused = null;
+    if (!data) return this.go('dashboard');
+    this.screenEl.hidden = true;
+    this.renderHudShell(data.match);
+    this.runScene({ ...data, hud: this.hud(), noIncidents: true }, false);
   }
 
   /** Partida de demonstração atrás do menu: clube da carreira (se houver) contra um rival qualquer. */
@@ -158,7 +195,7 @@ export class App {
     this.game?.scene.stop('penalty');
     const { career, rewards } = applyMatch(this.career!, stats);
     this.commit(career);
-    this.lastResult = { stats, rewards, teamId: f.team.id, opponentId: f.opponent.id, comp: f.comp.name, stage: f.stage, career };
+    this.lastResult = { stats, rewards, team: f.team, opponent: f.opponent, comp: f.comp.name, stage: f.stage, career };
     sfx.transition();
     this.go('result');
   }

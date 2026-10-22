@@ -1,6 +1,7 @@
 import { CLUBS, CONTINENTAL_CUPS, DOMESTIC_CUPS, getClub, getLeague, getTeam, STARTING_CLUB_ID } from '../data/clubs';
 import { COPA_AMERICA, COPA_AMERICA_TEAMS, EURO, nationByName, NATIONS, WORLD_CUP } from '../data/nations';
 import { gearBonus, getItem, type Equipped } from '../data/shop';
+import { EARTH, getSpecial, type SpecialId } from '../data/specials';
 import type { AttrKey, Attributes, Career, Club, CompKind, Competition, MatchStats, Objective, Offer, PlayerIdentity, Rng, Team, Weather } from '../types';
 import { alive, fixtureFor, groupsComp, knockoutComp, leagueComp, maxMatches, playRound, positionOf, simulateRest, stageLabel, type Sim } from './Competition';
 import { simulateShootout, sortStandings } from './League';
@@ -48,7 +49,7 @@ const EVENT_NEWS: Record<string, string> = {
   invader: 'Torcedor invade o campo',
   dog: 'Cachorro invade o gramado',
   blackout: 'Apagão nos refletores',
-  ufo: 'Disco voador é visto sobre o estádio',
+  raid: 'Raid! O cobrador foi abduzido no meio da disputa',
 };
 
 const COMP_WEIGHT: Record<CompKind, number> = { league: 1, cup: 1.2, continental: 1.6, national: 2 };
@@ -274,6 +275,40 @@ function awardTitle(c: Career, comp: Competition, teamId: string): void {
   c.news.unshift(`Título! ${getTeam(teamId).name} é campeão: ${comp.name} (temporada ${c.season}).`);
 }
 
+/** Soma XP e sobe de nível quantas vezes couber; retorna os níveis ganhos. */
+function gainXp(c: Career, xp: number): number {
+  c.xp += xp;
+  const start = c.level;
+  while (c.xp >= xpForLevel(c.level)) {
+    c.xp -= xpForLevel(c.level);
+    c.level++;
+    c.skillPoints += POINTS_PER_LEVEL;
+  }
+  return c.level - start;
+}
+
+/** Partida de raid: não conta na temporada; vale troféu, dinheiro, XP e uma boa história. */
+export function applyRaid(prev: Career, s: MatchStats, id: SpecialId): { career: Career; rewards: Rewards } {
+  const sp = getSpecial(id);
+  if (!sp) throw new Error(`Raid desconhecido: ${id}`);
+  const c: Career = structuredClone(prev);
+  const xp = 40 + s.goals * 10 + s.saves * 12 + (s.won ? 80 : 0);
+  const money = s.won ? 6000 : 1500;
+  const reputation = s.won ? 4 : 1;
+  c.money += money;
+  c.reputation = Math.min(100, c.reputation + reputation);
+  const levelsGained = gainXp(c, xp);
+  c.stats.goals += s.goals;
+  c.stats.kicks += s.kicks;
+  c.stats.saves += s.saves;
+  if (s.won) c.trophies.push({ season: c.season, name: sp.trophy, clubId: EARTH.id });
+  c.news.unshift(s.won
+    ? `${sp.title.replace('!', '')}: ${c.identity.name} vence o ${sp.team.name} (${s.scoreFor} x ${s.scoreAgainst}) e volta à Terra com a ${sp.trophy}!`
+    : `${sp.title.replace('!', '')}: derrota para o ${sp.team.name} (${s.scoreFor} x ${s.scoreAgainst}), mas ${c.identity.name} voltou à Terra.`);
+  c.news = c.news.slice(0, 14);
+  return { career: c, rewards: { xp, money, reputation, levelsGained, pointsGained: levelsGained * POINTS_PER_LEVEL, titles: s.won ? [sp.trophy] : [] } };
+}
+
 /** Aplica o resultado da partida do jogador, avança a competição e a temporada. Retorna uma nova carreira. */
 export function applyMatch(prev: Career, s: MatchStats, rng: Rng = Math.random): { career: Career; rewards: Rewards } {
   const c: Career = structuredClone(prev);
@@ -285,14 +320,7 @@ export function applyMatch(prev: Career, s: MatchStats, rng: Rng = Math.random):
 
   c.money += r.money;
   c.reputation = Math.max(0, Math.min(100, c.reputation + r.reputation));
-  c.xp += r.xp;
-  const startLevel = c.level;
-  while (c.xp >= xpForLevel(c.level)) {
-    c.xp -= xpForLevel(c.level);
-    c.level++;
-    c.skillPoints += POINTS_PER_LEVEL;
-  }
-  const levelsGained = c.level - startLevel;
+  const levelsGained = gainXp(c, r.xp);
 
   playRound(comp, me, [s.scoreFor, s.scoreAgainst], simFor(rng));
   c.calendar.shift();

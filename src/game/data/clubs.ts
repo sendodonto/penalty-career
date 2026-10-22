@@ -1,5 +1,6 @@
 import type { Club, League, Team } from '../types';
 import { NATIONS } from './nations';
+import { EARTH, SPECIALS } from './specials';
 
 /** Ligas de 8 clubes (turno único, 7 rodadas): tier mede o peso da liga no salário e na reputação. */
 export const LEAGUES: League[] = [
@@ -123,8 +124,9 @@ export function getLeague(id: string): League {
   return league;
 }
 
-/** Clube ou seleção pelo id (seleções usam o prefixo "n-"). */
+/** Clube, seleção ("n-") ou time dos raids ("s-") pelo id. */
 export function getTeam(id: string): Team {
+  if (id.startsWith('s-')) return [EARTH, ...SPECIALS.map((s) => s.team)].find((t) => t.id === id) ?? EARTH;
   return id.startsWith('n-') ? NATIONS.find((n) => n.id === id) ?? NATIONS[0] : getClub(id);
 }
 

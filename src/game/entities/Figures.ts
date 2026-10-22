@@ -25,7 +25,7 @@ abstract class Figure extends Phaser.GameObjects.Container {
     this.armL = scene.add.container(-18.5, -38.5, [img(skin.armL)]);
     this.armR = scene.add.container(18.5, -38.5, [img(skin.arm, true)]);
     // Cabeça um pouco menor que o desenho: proporção de atleta, não de boneco.
-    this.head = scene.add.container(0, -59, [img(skin.head).setScale(0.9 / ART_SCALE)]);
+    this.head = scene.add.container(0, -59, [img(skin.head).setScale(skin.headScale / ART_SCALE)]);
     this.torso.add([img(skin.torso), this.head, this.armL, this.armR]);
     this.add([this.legL, this.legR, shorts, this.torso]);
     scene.add.existing(this);

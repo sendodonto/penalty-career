@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { FONT } from '../data/appearance';
 import type { GoalPoint } from '../types';
+import { EARTH_THEME, type Species, type Theme } from '../data/specials';
 import { hex } from './Figures';
 
 /** Geometria do gol no mundo 1280x720. */
@@ -21,7 +22,8 @@ export class Stadium {
   private net: Phaser.GameObjects.Graphics;
   private netImage: Phaser.GameObjects.Image;
 
-  constructor(private scene: Phaser.Scene, homeColors: string[], awayColors: string[]) {
+  /** `theme`/`crowdSpecies`: estádios dos raids (Marte, estação orbital, planetas dos bichos). */
+  constructor(private scene: Phaser.Scene, homeColors: string[], awayColors: string[], private theme: Theme = EARTH_THEME, private crowdSpecies?: Species) {
     // Graphics do Phaser é retesselado a cada quadro; o cenário estático vira textura uma vez por partida.
     this.bake('st-stands', STANDS_TOP, 334, (g) => this.drawStands(g));
     const palette = [...homeColors, ...homeColors, ...awayColors, '#d8d2c4', '#3b4452', '#7a6a58', '#b74e3a'].map(hex);
@@ -47,10 +49,11 @@ export class Stadium {
   }
 
   private drawStands(g: Phaser.GameObjects.Graphics) {
-    g.fillStyle(0x0b0f14).fillRect(0, STANDS_TOP, 1280, 334 - STANDS_TOP);
+    const t = this.theme;
+    g.fillStyle(t.roof).fillRect(0, STANDS_TOP, 1280, 334 - STANDS_TOP);
     // Degraus da arquibancada (os negativos formam o anel superior)
     for (let i = -16; i < 9; i++) {
-      g.fillStyle(i % 2 ? 0x18202b : 0x141b24).fillRect(0, 34 + i * 29, 1280, 29);
+      g.fillStyle(i % 2 ? t.stands[0] : t.stands[1]).fillRect(0, 34 + i * 29, 1280, 29);
     }
     g.fillStyle(0x05070a).fillRect(0, STANDS_TOP, 1280, 24);
     g.fillStyle(0x07090c).fillRect(0, 0, 1280, 34);
@@ -72,13 +75,19 @@ export class Stadium {
         const col = palette[Math.floor(Math.random() * palette.length)];
         const jx = x + (Math.random() - 0.5) * 4;
         g.fillStyle(col, 0.9).fillRoundedRect(jx - 5, y, 10, 12, 3);
-        g.fillStyle(0xc9a07a, 0.85).fillCircle(jx, y - 3, 3.6);
+        const head = this.theme.crowd;
+        g.fillStyle(head, 0.9).fillCircle(jx, y - 3, 3.6);
+        // Torcida dos raids: anteninhas, visor, orelhas caídas ou pontudas
+        if (this.crowdSpecies === 'alien') g.fillStyle(0xffd23f).fillCircle(jx - 3, y - 9, 1.2).fillCircle(jx + 3, y - 9, 1.2);
+        else if (this.crowdSpecies === 'cyborg') g.fillStyle(0xff3b3b).fillRect(jx - 3, y - 4, 6, 1.4);
+        else if (this.crowdSpecies === 'dog') g.fillStyle(0x3d2716).fillEllipse(jx - 3.8, y - 2, 2.2, 4).fillEllipse(jx + 3.8, y - 2, 2.2, 4);
+        else if (this.crowdSpecies === 'cat') g.fillStyle(head).fillTriangle(jx - 4, y - 4, jx - 2, y - 9, jx, y - 5).fillTriangle(jx + 4, y - 4, jx + 2, y - 9, jx, y - 5);
       }
     }
   }
 
   private addBoardTexts() {
-    const ads = ['PENALTY CAREER', 'AURORA TÊXTIL', 'FARMÁCIA SOL', 'RÁDIO VALE FM', 'CAFÉ SERRANO'];
+    const ads = this.theme.ads;
     for (let i = 0; i < 6; i++) {
       this.scene.add.text(i * 214 + 105, 317, ads[i % ads.length], { fontFamily: FONT, fontSize: '15px', fontStyle: 'bold', color: '#f4f1e8' })
         .setOrigin(0.5).setAlpha(0.85).setResolution(2);
@@ -88,19 +97,26 @@ export class Stadium {
   /** Placas de publicidade + gramado (placas entram aqui para ficarem na frente da torcida). */
   private drawPitch(g: Phaser.GameObjects.Graphics, home: string) {
     g.fillStyle(0x10161d).fillRect(0, 300, 1280, 34);
-    for (let i = 0; i < 6; i++) g.fillStyle(i % 2 ? hex(home) : 0x1b2633).fillRect(i * 214, 303, 210, 28);
+    const t = this.theme;
+    for (let i = 0; i < 6; i++) g.fillStyle(i % 2 ? hex(home) : t.board).fillRect(i * 214, 303, 210, 28);
     for (let i = 0; i < GRASS_BANDS.length - 1; i++) {
-      g.fillStyle(i % 2 ? 0x2f7d3b : 0x358a42).fillRect(0, GRASS_BANDS[i], 1280, GRASS_BANDS[i + 1] - GRASS_BANDS[i]);
+      g.fillStyle(i % 2 ? t.pitch[1] : t.pitch[0]).fillRect(0, GRASS_BANDS[i], 1280, GRASS_BANDS[i + 1] - GRASS_BANDS[i]);
+    }
+    // Crateras de Marte
+    if (t !== EARTH_THEME && this.crowdSpecies === 'alien') {
+      for (const [x, y, r] of [[160, 470, 26], [1080, 520, 34], [300, 680, 40], [980, 760, 30], [560, 860, 46]]) {
+        g.fillStyle(0x000000, 0.14).fillEllipse(x, y, r * 2.2, r * 0.8).fillStyle(0xffffff, 0.06).fillEllipse(x, y - 3, r * 1.6, r * 0.5);
+      }
     }
     g.fillStyle(0x000000, 0.12).fillRect(0, 334, 1280, 14);
-    g.lineStyle(3, 0xf4f1e8, 0.85);
+    g.lineStyle(3, t.lines, 0.85);
     g.lineBetween(0, GOAL.ground, 1280, GOAL.ground);
     g.strokePoints([{ x: 350, y: 372 }, { x: 330, y: 400 }, { x: 950, y: 400 }, { x: 930, y: 372 }] as Phaser.Types.Math.Vector2Like[]);
     g.strokePoints([{ x: 165, y: 372 }, { x: 60, y: 602 }, { x: 1220, y: 602 }, { x: 1115, y: 372 }] as Phaser.Types.Math.Vector2Like[]);
     g.beginPath();
     g.arc(640, 602, 150, Phaser.Math.DegToRad(18), Phaser.Math.DegToRad(162), false);
     g.strokePath();
-    g.fillStyle(0xf4f1e8, 0.95).fillEllipse(SPOT.x, SPOT.y + 2, 16, 6);
+    g.fillStyle(t.lines, 0.95).fillEllipse(SPOT.x, SPOT.y + 2, 16, 6);
     // Sombra do gol
     g.fillStyle(0x000000, 0.18).fillPoints([
       { x: GOAL.cx - GOAL.halfW, y: GOAL.ground }, { x: BACK.left, y: BACK.bottom },

@@ -57,6 +57,7 @@ export function confirmDialog(title: string, text: string, confirmLabel: string,
 }
 
 export function toast(text: string): void {
+  document.querySelectorAll('.toast').forEach((t) => t.remove()); // um aviso por vez
   const el = document.createElement('div');
   el.className = 'toast';
   el.textContent = text;

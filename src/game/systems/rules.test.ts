@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { MatchStats, PlayerIdentity, Zone } from '../types';
-import { applyMatch, createCareer, matchSetup, nextFixture, seasonOver, spendSkillPoint, startNextSeason, train, trainingCost } from './Career';
+import { applyMatch, buyItem, createCareer, effectiveAttributes, equipped, matchSetup, nextFixture, pickWeather, seasonOver, spendSkillPoint, startNextSeason, toggleEquip, train, trainingCost } from './Career';
 import { alive, fixtureFor, groupsComp, knockoutComp, maxMatches, playRound, simulateRest, stageLabel } from './Competition';
 import { roundRobin } from './League';
 import { Match } from './MatchManager';
@@ -211,7 +211,7 @@ describe('Competições', () => {
 describe('Career', () => {
   const win: MatchStats = {
     won: true, scoreFor: 4, scoreAgainst: 2, goals: 4, kicks: 5, decisiveGoals: 1,
-    perfects: 1, topCornerGoals: 1, saves: 0, objectiveMet: true, userKicks: [],
+    perfects: 1, topCornerGoals: 1, saves: 0, objectiveMet: true, userKicks: [], events: [],
   };
   const loss: MatchStats = { ...win, won: false, scoreFor: 2, scoreAgainst: 4, goals: 2, decisiveGoals: 0, objectiveMet: false };
 
@@ -341,6 +341,51 @@ describe('Career', () => {
       expect(validateCareer(c)).toBeNull();
     }
     expect(c.season).toBe(5);
+  });
+});
+
+describe('Loja e clima', () => {
+  it('compra desconta o saldo e já equipa; reputação e saldo bloqueiam', () => {
+    const c0 = { ...createCareer(identity, seeded(1)), money: 5000, reputation: 10 };
+    const r = buyItem(c0, 'boots-neon');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.career.money).toBe(3500);
+    expect(equipped(r.career).boots).toBe('boots-neon');
+    expect(buyItem(r.career, 'boots-neon')).toMatchObject({ ok: false });
+    expect(buyItem(c0, 'armband-captain')).toMatchObject({ ok: false, reason: 'Disponível com reputação 35' });
+    expect(buyItem({ ...c0, money: 10 }, 'boots-white')).toMatchObject({ ok: false, reason: 'Saldo insuficiente' });
+    const off = toggleEquip(r.career, 'boots-neon');
+    expect(equipped(off).boots).toBeUndefined();
+    expect(validateCareer(off)).toBeNull();
+  });
+
+  it('chuteira rara soma bônus nos atributos em campo, sem passar de 99', () => {
+    let c = { ...createCareer(identity, seeded(1)), money: 99999, reputation: 60 };
+    const r = buyItem(c, 'boots-gold');
+    if (!r.ok) throw new Error(r.reason);
+    c = r.career;
+    expect(effectiveAttributes(c).power).toBe(c.attributes.power + 2);
+    expect(effectiveAttributes({ ...c, attributes: { ...c.attributes, power: 99 } }).power).toBe(99);
+    expect(matchSetup(c, nextFixture(c)!).attrs.composure).toBe(c.attributes.composure + 1);
+  });
+
+  it('chuva deixa os goleiros escorregarem; neve deixa a barra mais nervosa', () => {
+    const c = createCareer(identity, seeded(1));
+    const f = nextFixture(c)!;
+    const dry = matchSetup(c, f, 'clear');
+    const wet = matchSetup(c, f, 'rain');
+    expect(wet.oppKeeper.reach).toBeLessThan(dry.oppKeeper.reach);
+    expect(wet.ownKeeper.reach).toBeLessThan(dry.ownKeeper.reach);
+    expect(matchSetup(c, f, 'snow').difficulty).toBeGreaterThan(dry.difficulty);
+    expect(pickWeather(c, f, () => 0.28)).toBe('clear'); // neve só na Europa
+  });
+
+  it('imprevistos da partida viram notícia', () => {
+    const c = createCareer(identity, seeded(1));
+    const s: MatchStats = { won: true, scoreFor: 4, scoreAgainst: 3, goals: 4, kicks: 5, decisiveGoals: 0, perfects: 0, topCornerGoals: 0, saves: 0, objectiveMet: false, userKicks: [], events: ['rain', 'ufo'] };
+    const next = applyMatch(c, s, seeded(2)).career;
+    expect(next.news[0]).toMatch(/^Disco voador é visto sobre o estádio em Ituano x /);
   });
 });
 

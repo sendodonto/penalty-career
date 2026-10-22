@@ -2,7 +2,9 @@ import Phaser from 'phaser';
 import { sfx, startAmbience, stopAmbience } from '../audio';
 import { BOOT_COLORS, FONT, HAIR_COLORS, HAIR_STYLES, KEEPER_KITS, SKIN_TONES } from '../data/appearance';
 import { IS_TOUCH } from '../device';
+import type { GearVisual } from '../data/shop';
 import { clubKit, figureSkin, type FigureSkin, type Kit } from '../entities/figureArt';
+import { pickIncident, playIncident, weatherFx, type Incident } from './MatchEvents';
 import { Ball, hex, Keeper, Kicker } from '../entities/Figures';
 import { GOAL, SPOT, Stadium, toScreen } from '../entities/Stadium';
 import { REACTION } from '../systems/GoalkeeperAI';
@@ -18,7 +20,8 @@ export interface Hud {
 
 export interface PenaltySceneData {
   match: Match;
-  player: { name: string; number: number; appearance: Appearance };
+  /** `gear`/`celebration` vêm da loja da carreira */
+  player: { name: string; number: number; appearance: Appearance; gear?: GearVisual; celebration?: string };
   hud: Hud;
   onFinish(stats: MatchStats): void;
   /** Fundo animado do menu: os dois lados jogam sozinhos, sem som nem interface. */
@@ -124,6 +127,9 @@ export class PenaltyScene extends Phaser.Scene {
   private confetti!: Phaser.GameObjects.Particles.ParticleEmitter;
   private autoNext?: Phaser.Time.TimerEvent;
   private meterUi: Phaser.GameObjects.GameObject[] = [];
+  /** Vezes já jogadas e imprevistos já ocorridos nesta partida */
+  private turns = 0;
+  private incidents = 0;
   private meterBox!: Phaser.GameObjects.Container;
   /** Escala base da faixa de resultado (menor em pé, onde a tela é estreita). */
   private bannerScale = 1;
@@ -154,12 +160,17 @@ export class PenaltyScene extends Phaser.Scene {
     this.kicker = undefined;
     this.keeper = undefined;
     this.guard = null;
+    this.turns = 0;
+    this.incidents = 0;
   }
 
   create() {
     const { club, opponent } = this.d.match.setup;
     // No menu o lance fica à direita, livre do logo e dos botões.
     this.stadium = new Stadium(this, [club.primary, club.secondary], [opponent.primary, opponent.secondary]);
+    const weather = this.d.match.setup.weather;
+    weatherFx(this, weather);
+    if (weather !== 'clear') this.d.match.events.push(weather);
 
     this.shadow = this.add.ellipse(BALL_REST.x, SPOT.y + 1, 18, 6, 0x000000, 0.35).setDepth(5);
     this.ball = new Ball(this, BALL_REST.x, BALL_REST.y).setDepth(20);
@@ -209,10 +220,10 @@ export class PenaltyScene extends Phaser.Scene {
     const { club, opponent } = this.d.match.setup;
     const p = this.d.player;
     const [user, keeperOwn, keeperOpp, ...opp] = await Promise.all([
-      figureSkin(this, 'back', p.appearance, clubKit(club), p.number, p.name.split(' ').pop()),
+      figureSkin(this, 'back', p.appearance, clubKit(club), { number: p.number, name: p.name.split(' ').pop(), gear: p.gear }),
       figureSkin(this, 'front', this.randomLook(), keeperKit(club)),
       figureSkin(this, 'front', this.randomLook(), keeperKit(opponent)),
-      ...OPP_NAMES.map((name, i) => figureSkin(this, 'back', this.randomLook(), clubKit(opponent), OPP_NUMBERS[i], name)),
+      ...OPP_NAMES.map((name, i) => figureSkin(this, 'back', this.randomLook(), clubKit(opponent), { number: OPP_NUMBERS[i], name })),
     ]);
     this.skins = { user, keeperOwn, keeperOpp, opp };
   }
@@ -233,7 +244,7 @@ export class PenaltyScene extends Phaser.Scene {
 
   // ---------- Turnos ----------
 
-  private nextTurn() {
+  private nextTurn(afterIncident = false) {
     this.autoNext?.remove();
     this.guard = null;
     this.setSlowMo(false);
@@ -252,6 +263,26 @@ export class PenaltyScene extends Phaser.Scene {
     const m = this.d.match;
     this.d.hud.update(m);
     if (m.turn === 'done') return this.finale();
+    // Imprevisto entre cobranças: no máximo 2 por partida, nunca antes da primeira.
+    // Só em desenvolvimento: window.__forceIncident = 'ufo' força o próximo imprevisto (testes visuais).
+    const dev = import.meta.env.DEV ? (window as unknown as { __forceIncident?: Incident }) : undefined;
+    const forced = dev?.__forceIncident;
+    if (!afterIncident && this.turns > 0 && (forced || (this.incidents < 2 && Math.random() < (this.d.demo ? 0.18 : 0.12)))) {
+      const kind = forced ?? pickIncident(Math.random());
+      if (dev) delete dev.__forceIncident;
+      const run = this.run;
+      this.incidents++;
+      m.events.push(kind);
+      this.phase = 'wait';
+      this.setZonesVisible(false);
+      this.d.hud.hint('');
+      void playIncident(this, kind, {
+        stadium: this.stadium, ball: this.ball, ballRest: BALL_REST, sfx: this.sfx,
+        toast: (title, sub) => !this.d.demo && this.showBanner(title, '#5bd8ff', sub, ''),
+      }).then(() => run === this.run && this.sys.isActive() && this.nextTurn(true));
+      return;
+    }
+    this.turns++;
 
     const user = m.turn === 'user';
     const kickerSkin = user ? this.skins.user : this.skins.opp[m.oppKicks.length % this.skins.opp.length];
@@ -533,7 +564,7 @@ export class PenaltyScene extends Phaser.Scene {
         onComplete: () => this.stadium.drawNet(null, 0),
       });
       tw.add({ targets: this.ball, y: GOAL.ground - 26, duration: 520, delay: 200, ease: 'Bounce.out' });
-      this.kicker!.celebrate();
+      this.kicker!.celebrate(user ? this.d.player.celebration : undefined);
       if (user) {
         this.stadium.cheer(4);
         this.burstConfetti(25);

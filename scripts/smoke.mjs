@@ -92,6 +92,7 @@ try {
   if (saved1.career.money <= 250 || saved1.career.history.length !== 1) fail('recompensas não aplicadas');
   console.log(`Após partida 1: nível ${saved1.career.level}, XP ${saved1.career.xp}, $${saved1.career.money}, rep ${saved1.career.reputation}, pontos ${saved1.career.skillPoints}`);
 
+  await page.click('[data-a="tab:player"]');
   if (saved1.career.skillPoints > 0) await page.click('[data-a="point:precision"]');
   const trainBtn = page.locator('[data-a="train:power"]');
   if (await trainBtn.isEnabled()) await trainBtn.click();
@@ -103,9 +104,26 @@ try {
   await page.reload();
   if (!(await page.locator('[data-a="continue"]').count())) fail('botão Continuar ausente após recarregar');
   await page.click('[data-a="continue"]');
+  await page.click('[data-a="tab:career"]');
   const played = await page.locator('.career-nums b').first().innerText();
   if (played !== '2') fail(`partidas após recarregar = ${played}`);
   console.log('Recarregar + Continuar: OK, partidas =', played);
+
+  // Loja: com saldo injetado, compra uma chuteira pela interface e confere o save
+  await page.evaluate(() => {
+    const f = JSON.parse(localStorage.getItem('penalty-career/save'));
+    f.career.money = 5000;
+    localStorage.setItem('penalty-career/save', JSON.stringify(f));
+  });
+  await page.reload();
+  await page.click('[data-a="continue"]');
+  await page.click('[data-a="tab:shop"]');
+  await snap(page, '10-shop');
+  await page.click('[data-a="buy:boots-neon"]');
+  const shop = await page.evaluate(() => JSON.parse(localStorage.getItem('penalty-career/save')).career);
+  if (shop.money !== 3500 || shop.wardrobe?.equipped?.boots !== 'boots-neon') fail('compra na loja');
+  else console.log('Loja: chuteira Neon comprada e equipada, saldo atualizado: OK');
+  await page.click('[data-a="tab:overview"]');
 
   for (const [w, h] of [[1280, 720], [1366, 768], [1920, 1080]]) {
     await page.setViewportSize({ width: w, height: h });

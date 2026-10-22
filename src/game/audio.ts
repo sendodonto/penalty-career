@@ -89,6 +89,10 @@ export const sfx = {
     tone('square', 2700, 2600, 0.05, 0.01, 0.45, 0.25);
   },
   transition: () => tone('sine', 340, 520, 0.05, 0.02, 0.12),
+  /** Zumbido de disco voador: tons que sobem e descem */
+  ufo: () => {
+    for (let i = 0; i < 6; i++) tone('sine', i % 2 ? 420 : 900, i % 2 ? 900 : 420, 0.06, 0.02, 0.32, i * 0.34);
+  },
 };
 
 export function startAmbience(): void {

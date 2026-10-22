@@ -23,6 +23,13 @@ npm run smoke      # teste E2E no Microsoft Edge instalado (BROWSER=chrome para 
 - Janela de transferências ao fim da temporada: propostas com salário por jogo e duração do contrato, ou renovação.
 - Salvamento versionado (v2); carreiras da v1 são migradas automaticamente.
 
+## Loja e eventos
+
+- Painel da carreira com abas: Visão geral, Jogador, Competições, Loja e Carreira.
+- Loja com o dinheiro do salário: chuteiras (as raras dão +1/+2 em atributos), segunda pele, meião baixo, faixa, munhequeira, luvas, cordão, braçadeira de capitão e comemorações de gol. Tudo aparece no jogador durante as partidas.
+- Clima por partida (chuva, neve na Europa, neblina) com efeito leve no jogo, e imprevistos entre as cobranças: invasão de campo, cachorro no gramado, apagão e disco voador. Os mais curiosos viram notícia.
+- Em `npm run dev`, `window.__forceWeather = 'rain'` e `window.__forceIncident = 'ufo'` forçam clima e imprevisto para testes (não existem no build de produção).
+
 ## Jogar no celular
 
 ```bash

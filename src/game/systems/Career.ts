@@ -1,6 +1,7 @@
 import { CLUBS, CONTINENTAL_CUPS, DOMESTIC_CUPS, getClub, getLeague, getTeam, STARTING_CLUB_ID } from '../data/clubs';
 import { COPA_AMERICA, COPA_AMERICA_TEAMS, EURO, nationByName, NATIONS, WORLD_CUP } from '../data/nations';
-import type { AttrKey, Attributes, Career, Club, CompKind, Competition, MatchStats, Objective, Offer, PlayerIdentity, Rng, Team } from '../types';
+import { gearBonus, getItem, type Equipped } from '../data/shop';
+import type { AttrKey, Attributes, Career, Club, CompKind, Competition, MatchStats, Objective, Offer, PlayerIdentity, Rng, Team, Weather } from '../types';
 import { alive, fixtureFor, groupsComp, knockoutComp, leagueComp, maxMatches, playRound, positionOf, simulateRest, stageLabel, type Sim } from './Competition';
 import { simulateShootout, sortStandings } from './League';
 import type { MatchSetup } from './MatchManager';
@@ -41,6 +42,14 @@ const OBJECTIVES: Objective[] = [
   { id: 'score_all', text: 'Converta todas as suas cobranças' },
   { id: 'save_one', text: 'Defenda pelo menos uma cobrança' },
 ];
+
+/** Manchetes dos imprevistos que viram notícia (os ids vêm de scenes/MatchEvents). */
+const EVENT_NEWS: Record<string, string> = {
+  invader: 'Torcedor invade o campo',
+  dog: 'Cachorro invade o gramado',
+  blackout: 'Apagão nos refletores',
+  ufo: 'Disco voador é visto sobre o estádio',
+};
 
 const COMP_WEIGHT: Record<CompKind, number> = { league: 1, cup: 1.2, continental: 1.6, national: 2 };
 export const KIND_LABEL: Record<CompKind, string> = { league: 'Liga', cup: 'Copa nacional', continental: 'Continental', national: 'Seleção' };
@@ -163,16 +172,75 @@ export function nextFixture(c: Career): Fixture | null {
   };
 }
 
-export function matchSetup(c: Career, f: Fixture): MatchSetup {
+// ---------- Loja ----------
+
+export const wardrobeOf = (c: Career) => c.wardrobe ?? { owned: [], equipped: {} };
+export const equipped = (c: Career) => wardrobeOf(c).equipped as Equipped;
+
+/** Atributos em campo: base + bônus dos itens equipados (chuteiras raras). */
+export function effectiveAttributes(c: Career): Attributes {
+  const bonus = gearBonus(equipped(c));
+  const out = { ...c.attributes };
+  for (const k of ATTR_KEYS) out[k] = Math.min(MAX_ATTR, out[k] + (bonus[k] ?? 0));
+  return out;
+}
+
+export type BuyResult = { ok: true; career: Career } | { ok: false; reason: string };
+
+/** Compra e já equipa o item. */
+export function buyItem(prev: Career, id: string): BuyResult {
+  const item = getItem(id);
+  if (!item) return { ok: false, reason: 'Item inexistente' };
+  const w = wardrobeOf(prev);
+  if (w.owned.includes(id)) return { ok: false, reason: 'Você já tem este item' };
+  if ((item.minRep ?? 0) > prev.reputation) return { ok: false, reason: `Disponível com reputação ${item.minRep}` };
+  if (prev.money < item.price) return { ok: false, reason: 'Saldo insuficiente' };
+  const c = structuredClone(prev);
+  c.money -= item.price;
+  c.wardrobe = { owned: [...w.owned, id], equipped: { ...w.equipped, [item.slot]: id } };
+  return { ok: true, career: c };
+}
+
+/** Equipa um item comprado, ou desequipa se já estiver em uso. */
+export function toggleEquip(prev: Career, id: string): Career {
+  const item = getItem(id);
+  const w = wardrobeOf(prev);
+  if (!item || !w.owned.includes(id)) return prev;
+  const c = structuredClone(prev);
+  const eq = { ...w.equipped };
+  if (eq[item.slot] === id) delete eq[item.slot];
+  else eq[item.slot] = id;
+  c.wardrobe = { owned: [...w.owned], equipped: eq };
+  return c;
+}
+
+// ---------- Partida ----------
+
+/** Clima sorteado para a partida; neve só na Europa. */
+export function pickWeather(c: Career, f: Fixture, rng: Rng = Math.random): Weather {
+  const europe = f.comp.kind === 'national' ? myNation(c).confed === 'UEFA' : getLeague(leagueIdOf(c, c.clubId)).continent === 'eu';
+  const r = rng();
+  if (r < 0.18) return 'rain';
+  if (r < 0.24) return 'fog';
+  if (europe && r < 0.31) return 'snow';
+  return 'clear';
+}
+
+export function matchSetup(c: Career, f: Fixture, weather: Weather = 'clear'): MatchSetup {
+  // Chuva: goleiros escorregam; neve: barra mais nervosa e goleiros um pouco mais lentos.
+  const grip = weather === 'rain' ? 0.94 : weather === 'snow' ? 0.97 : 1;
+  const oppKeeper = keeperFromRating(f.opponent.keeper + c.reputation / 500);
+  const ownKeeper = keeperFromRating(f.team.keeper);
   return {
     club: f.team,
     opponent: f.opponent,
-    attrs: { ...c.attributes },
-    difficulty: f.difficulty,
+    attrs: effectiveAttributes(c),
+    difficulty: Math.min(1, f.difficulty + (weather === 'snow' ? 0.05 : 0)),
     oppSkill: Math.min(0.95, f.opponent.strength + c.reputation / 500),
-    oppKeeper: keeperFromRating(f.opponent.keeper + c.reputation / 500),
-    ownKeeper: keeperFromRating(f.team.keeper),
+    oppKeeper: { ...oppKeeper, reach: oppKeeper.reach * grip },
+    ownKeeper: { ...ownKeeper, reach: ownKeeper.reach * grip },
     objective: f.objective,
+    weather,
   };
 }
 
@@ -240,6 +308,9 @@ export function applyMatch(prev: Career, s: MatchStats, rng: Rng = Math.random):
     scoreFor: s.scoreFor, scoreAgainst: s.scoreAgainst, won: s.won, goals: s.goals, kicks: s.kicks, objectiveMet: s.objectiveMet,
   });
   c.history = c.history.slice(0, 40);
+  for (const ev of s.events) {
+    if (EVENT_NEWS[ev]) c.news.unshift(`${EVENT_NEWS[ev]} em ${f.team.name} x ${f.opponent.name}.`);
+  }
   c.stats.goals += s.goals;
   c.stats.kicks += s.kicks;
   c.stats.saves += s.saves;

@@ -1,5 +1,7 @@
 export type Rng = () => number;
 
+export type Weather = 'clear' | 'rain' | 'snow' | 'fog';
+
 /** 0 inferior esq., 1 superior esq., 2 centro, 3 superior dir., 4 inferior dir. */
 export type Zone = 0 | 1 | 2 | 3 | 4;
 export type Grade = 'perfect' | 'good' | 'ok' | 'bad';
@@ -156,6 +158,8 @@ export interface Career {
   news: string[];
   /** Janela de transferências do fim da temporada */
   offers: Offer[];
+  /** Loja: itens comprados e equipados por slot (opcional para saves antigos) */
+  wardrobe?: { owned: string[]; equipped: Partial<Record<string, string>> };
 }
 
 export interface MatchStats {
@@ -170,4 +174,6 @@ export interface MatchStats {
   saves: number;
   objectiveMet: boolean;
   userKicks: KickOutcome[];
+  /** Imprevistos e clima que marcaram a partida (ids de MatchEvents) */
+  events: string[];
 }

@@ -21,7 +21,8 @@ abstract class Figure extends Phaser.GameObjects.Container {
     this.legR = scene.add.container(7, -52, [img(skin.leg, true)]);
     const shorts = img(skin.shorts).setPosition(0, -62);
     this.torso = scene.add.container(0, -56);
-    this.armL = scene.add.container(-18.5, -38.5, [img(skin.arm)]);
+    // De costas o braço esquerdo do jogador fica à esquerda da tela; de frente, à direita.
+    this.armL = scene.add.container(-18.5, -38.5, [img(skin.armL)]);
     this.armR = scene.add.container(18.5, -38.5, [img(skin.arm, true)]);
     // Cabeça um pouco menor que o desenho: proporção de atleta, não de boneco.
     this.head = scene.add.container(0, -59, [img(skin.head).setScale(0.9 / ART_SCALE)]);
@@ -64,11 +65,35 @@ export class Kicker extends Figure {
     });
   }
 
-  celebrate(): void {
+  /** Comemoração de gol; os estilos além dos braços erguidos vêm da loja. */
+  celebrate(style?: string): void {
     const tw = this.scene.tweens;
-    tw.add({ targets: this.armL, rotation: 2.7, duration: 220, ease: 'Back.out' });
-    tw.add({ targets: this.armR, rotation: -2.7, duration: 220, ease: 'Back.out' });
-    tw.add({ targets: this, y: this.y - 16, duration: 200, yoyo: true, repeat: 2, ease: 'Quad.out' });
+    if (style === 'cel-plane') {
+      tw.add({ targets: this.armL, rotation: 1.5, duration: 200 });
+      tw.add({ targets: this.armR, rotation: -1.5, duration: 200 });
+      tw.add({ targets: this.torso, rotation: 0.22, duration: 200 });
+      tw.add({ targets: this, x: this.x + 110, y: this.y - 14, duration: 900, ease: 'Sine.out' });
+      tw.add({ targets: this.legL, rotation: { from: -0.4, to: 0.4 }, duration: 140, yoyo: true, repeat: 3 });
+      tw.add({ targets: this.legR, rotation: { from: 0.4, to: -0.4 }, duration: 140, yoyo: true, repeat: 3 });
+    } else if (style === 'cel-jump') {
+      tw.add({ targets: this.armL, rotation: 0.5, duration: 150 });
+      tw.add({ targets: this.armR, rotation: { from: -2.2, to: -3 }, duration: 140, yoyo: true, repeat: 4 });
+      tw.add({ targets: this, y: this.y - 30, duration: 260, yoyo: true, ease: 'Quad.out' });
+    } else if (style === 'cel-dance') {
+      tw.add({ targets: this.torso, rotation: { from: -0.2, to: 0.2 }, duration: 180, yoyo: true, repeat: 5 });
+      tw.add({ targets: this.armL, rotation: { from: 0.4, to: 2.6 }, duration: 180, yoyo: true, repeat: 5 });
+      tw.add({ targets: this.armR, rotation: { from: -2.6, to: -0.4 }, duration: 180, yoyo: true, repeat: 5 });
+      tw.add({ targets: this, y: this.y - 6, duration: 180, yoyo: true, repeat: 5 });
+    } else if (style === 'cel-knee') {
+      tw.add({ targets: [this.legL, this.legR], scaleY: 0.55, duration: 160 });
+      tw.add({ targets: this.armL, rotation: 2.6, duration: 200, ease: 'Back.out' });
+      tw.add({ targets: this.armR, rotation: -2.6, duration: 200, ease: 'Back.out' });
+      tw.add({ targets: this, y: this.y - 40, scale: this.scale * 0.94, duration: 700, ease: 'Quad.out' });
+    } else {
+      tw.add({ targets: this.armL, rotation: 2.7, duration: 220, ease: 'Back.out' });
+      tw.add({ targets: this.armR, rotation: -2.7, duration: 220, ease: 'Back.out' });
+      tw.add({ targets: this, y: this.y - 16, duration: 200, yoyo: true, repeat: 2, ease: 'Quad.out' });
+    }
   }
 
   dejected(): void {

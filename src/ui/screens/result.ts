@@ -1,6 +1,7 @@
 import { sfx } from '../../game/audio';
 import { getTeam } from '../../game/data/clubs';
 import { seasonOver } from '../../game/systems/Career';
+import { EVENT_LABEL } from '../../game/scenes/MatchEvents';
 import { ZONE_NAMES } from '../../game/systems/PenaltyResolver';
 import type { App } from '../app';
 import { badge, esc, money } from '../components';
@@ -23,6 +24,7 @@ export function renderResult(app: App): HTMLElement {
       <p class="kicker-line">${s.won ? 'Vitória' : 'Derrota'} · ${esc(r.comp)} · ${esc(r.stage)}</p>
       <div class="result-score">${badge(club, 64)}<b>${s.scoreFor}</b><span>x</span><b>${s.scoreAgainst}</b>${badge(opp, 64)}</div>
       <p>${esc(club.name)} contra ${esc(opp.name)}</p>
+      ${s.events.length ? `<div class="moments">${s.events.map((e) => `<span class="comp-tag">${esc(EVENT_LABEL[e] ?? e)}</span>`).join('')}</div>` : ''}
     </div>
     ${w.titles.map((t) => `<div class="panel title-won"><p class="kicker-line">Título conquistado</p><b>${esc(t)}</b><span>Temporada ${c.season} · ${esc(club.name)}</span></div>`).join('')}
     <div class="prep-grid">

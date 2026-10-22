@@ -2,15 +2,16 @@ import Phaser from 'phaser';
 import { isMuted, setMuted, sfx } from '../game/audio';
 import { PenaltyScene, type Hud, type PenaltySceneData } from '../game/scenes/PenaltyScene';
 import { CLUBS, getClub } from '../game/data/clubs';
-import { applyMatch, matchSetup, nextFixture, type Fixture, type Rewards } from '../game/systems/Career';
+import { gearVisual, type Category } from '../game/data/shop';
+import { applyMatch, equipped, matchSetup, nextFixture, pickWeather, type Fixture, type Rewards } from '../game/systems/Career';
 import { Match } from '../game/systems/MatchManager';
 import { keeperFromRating } from '../game/systems/PenaltyResolver';
 import { loadCareer, saveCareer, saveSettings, type LoadResult } from '../game/systems/SaveManager';
 import { IS_TOUCH } from '../game/device';
-import type { Career, MatchStats } from '../game/types';
+import type { Career, MatchStats, Weather } from '../game/types';
 import { badge, esc, toast } from './components';
 import { renderCreate } from './screens/create';
-import { renderDashboard } from './screens/dashboard';
+import { renderDashboard, type HubTab } from './screens/dashboard';
 import { renderMenu } from './screens/menu';
 import { renderPrep } from './screens/prep';
 import { renderResult } from './screens/result';
@@ -25,6 +26,9 @@ export class App {
   career: Career | null = null;
   saveState: LoadResult;
   lastResult: LastResult | null = null;
+  /** Aba aberta no painel da carreira e categoria da loja */
+  hubTab: HubTab = 'overview';
+  shopCat: Category = 'Chuteiras';
   private game: Phaser.Game | null = null;
   private screenEl: HTMLElement;
   private stageEl: HTMLElement;
@@ -87,13 +91,18 @@ export class App {
     const c = this.career;
     const fixture = c && nextFixture(c);
     if (!c || !fixture) return this.go('dashboard');
-    const match = new Match(matchSetup(c, fixture));
+    // Só em desenvolvimento: window.__forceWeather = 'rain' força o clima (testes visuais).
+    const forcedWeather = import.meta.env.DEV ? (window as unknown as { __forceWeather?: Weather }).__forceWeather : undefined;
+    const match = new Match(matchSetup(c, fixture, forcedWeather ?? pickWeather(c, fixture)));
     this.screenEl.hidden = true;
     this.renderHudShell(match);
 
     const data: PenaltySceneData = {
       match,
-      player: { name: c.identity.name, number: c.identity.number, appearance: c.identity.appearance },
+      player: {
+        name: c.identity.name, number: c.identity.number, appearance: c.identity.appearance,
+        gear: gearVisual(equipped(c), fixture.team.primary), celebration: equipped(c).celebration,
+      },
       hud: this.hud(),
       onFinish: (stats) => this.finishMatch(stats, fixture),
     };
@@ -111,6 +120,7 @@ export class App {
     const match = new Match({
       club, opponent, attrs: { precision: 72, power: 72, curve: 72, composure: 72 },
       difficulty: 0.4, oppSkill: 0.7, oppKeeper: keeper, ownKeeper: keeper, objective: { id: 'win', text: '' },
+      weather: (['clear', 'clear', 'clear', 'rain', 'snow', 'fog'] as const)[Math.floor(Math.random() * 6)],
     });
     const r = (n: number) => Math.floor(Math.random() * n);
     this.runScene({

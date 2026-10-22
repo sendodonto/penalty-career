@@ -1,4 +1,4 @@
-import type { Attributes, DefendedKick, Defense, KeeperProfile, KickOutcome, MatchStats, MeterParams, Objective, Rng, Team, Zone } from '../types';
+import type { Attributes, DefendedKick, Defense, KeeperProfile, KickOutcome, MatchStats, MeterParams, Objective, Rng, Team, Weather, Zone } from '../types';
 import { defendStrike, meterParams, opponentStrike, resolveShot, type OpponentStrike, type Strike } from './PenaltyResolver';
 import { Shootout, type Team as Side } from './Shootout';
 
@@ -13,6 +13,7 @@ export interface MatchSetup {
   oppKeeper: KeeperProfile;
   ownKeeper: KeeperProfile;
   objective: Objective;
+  weather: Weather;
 }
 
 export type Turn = 'user' | 'opp' | 'done';
@@ -22,6 +23,8 @@ export class Match {
   readonly shootout = new Shootout();
   readonly userKicks: (KickOutcome & { decisive: boolean })[] = [];
   readonly oppKicks: DefendedKick[] = [];
+  /** Imprevistos que a cena registrou durante a disputa */
+  readonly events: string[] = [];
   private pending: OpponentStrike | null = null;
 
   constructor(readonly setup: MatchSetup, private rng: Rng = Math.random) {}
@@ -101,6 +104,7 @@ export class Match {
       saves,
       objectiveMet: met[this.setup.objective.id],
       userKicks: [...this.userKicks],
+      events: [...this.events],
     };
   }
 }

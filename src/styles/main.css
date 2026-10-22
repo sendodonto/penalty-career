@@ -210,6 +210,77 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
 .offers small { display: block; }
 .season-end > .btn { width: 100%; margin-top: 12px; }
 
+/* ---------- Painel da carreira (hub) ---------- */
+.hub { max-width: 1240px; }
+.hub-top { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+.hub-club { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 220px; }
+.hub-club b { display: block; font-size: 22px; line-height: 1.1; }
+.hub-club span { color: var(--muted); font-size: 14px; }
+.hub-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.stat-chip { display: grid; padding: 6px 12px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); line-height: 1.15; }
+.stat-chip small { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
+.stat-chip b { font-size: 18px; }
+.stat-chip.accent b { color: var(--accent); }
+.hub-hero { display: grid; grid-template-columns: minmax(220px, 300px) 1fr; gap: 24px; align-items: center; padding: 0; overflow: hidden; }
+.hero-stage { position: relative; height: 100%; min-height: 300px; display: grid; align-content: end; justify-items: center; padding: 12px 12px 14px;
+  background: radial-gradient(ellipse at 50% 16%, rgba(255, 250, 225, .16), transparent 62%), repeating-linear-gradient(180deg, #2f7d3b 0 30px, #358a42 30px 60px); }
+.hero-figure { width: 100%; max-width: 230px; height: 250px; }
+.hero-name { display: grid; text-align: center; background: rgba(7, 9, 12, .7); padding: 6px 14px; border-radius: 8px; }
+.hero-name b { font-size: 17px; }
+.hero-name span { font-size: 12px; color: #cfd8d2; }
+.hero-info { padding: 22px 24px 22px 0; display: grid; gap: 12px; }
+.hero-comp { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; color: var(--muted); }
+.hero-comp b { color: var(--text); font-size: 18px; }
+.hero-versus { display: flex; align-items: center; gap: 24px; }
+.hero-versus > div { display: grid; justify-items: center; gap: 4px; font-size: 18px; }
+.hero-info .versus-names { text-align: left; margin: 0; }
+.hero-info .objective { margin: 0; }
+.hero-info .btn.big { justify-self: start; min-width: 220px; }
+.hub-tabs { display: flex; gap: 4px; margin: 18px 0 14px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+.hub-tabs button { border: 0; background: none; color: var(--muted); font-weight: 700; font-size: 15px; padding: 10px 16px; cursor: pointer;
+  border-bottom: 3px solid transparent; margin-bottom: -1px; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+.hub-tabs button.on { color: var(--text); border-bottom-color: var(--accent); }
+.hub-tabs .dot { background: var(--accent); color: var(--accent-ink); font-size: 11px; border-radius: 99px; padding: 1px 7px; }
+.hub-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.hub-grid .panel + .panel, .stack .panel + .panel { margin-top: 0; }
+.span-2 { grid-column: 1 / -1; }
+.stack { display: grid; gap: 16px; }
+.facts { display: grid; grid-template-columns: 100px 1fr; gap: 8px 12px; margin: 16px 0 0; font-size: 14px; }
+.facts dt { color: var(--muted); font-weight: 700; }
+.facts dd { margin: 0; }
+.gear-bonus { font-style: normal; color: var(--win); font-size: 12px; font-weight: 700; }
+.ties { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ties li { display: grid; grid-template-columns: 20px 1fr auto 1fr 20px; gap: 8px; align-items: center; background: var(--panel-2); border-radius: 8px; padding: 6px 10px; }
+.ties li span:last-of-type { text-align: right; }
+.ties em { font-style: normal; color: var(--muted); }
+.ties li.me { box-shadow: inset 0 0 0 1px var(--accent); }
+.champion { display: flex; align-items: center; gap: 10px; font-size: 17px; }
+.moments { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
+
+/* Loja */
+.shop { display: grid; grid-template-columns: 280px 1fr; gap: 16px; align-items: start; }
+.shop-fitting { position: sticky; top: 16px; display: grid; gap: 10px; background:
+  linear-gradient(180deg, rgba(53, 138, 66, .25), transparent 70%), var(--panel); }
+.fitting-figure { width: 100%; height: 300px; }
+.equipped-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 14px; }
+.equipped-list li { display: flex; justify-content: space-between; gap: 10px; }
+.equipped-list span { color: var(--muted); }
+.shop-shelf { display: grid; gap: 14px; }
+.shop-items { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.shop-item { display: grid; grid-template-columns: 76px 1fr; grid-template-rows: auto auto; gap: 6px 12px; padding: 10px; border-radius: 10px;
+  background: var(--panel-2); border: 1px solid var(--line); }
+.shop-item.on { border-color: var(--accent); }
+.item-art { grid-row: span 2; width: 76px; height: 76px; border-radius: 8px; background: #2f7d3b; display: grid; place-items: center; overflow: hidden; }
+.item-preview { width: 100%; height: 100%; }
+.cel-name { font-weight: 700; font-size: 12px; text-align: center; padding: 6px; color: #fff; }
+.item-info { display: grid; gap: 2px; }
+.item-info small { font-size: 13px; line-height: 1.35; }
+.item-info em { font-style: normal; font-size: 12px; font-weight: 700; }
+.item-info .lock { color: var(--loss); }
+.item-info .in-use { color: var(--accent); }
+.item-info .owned { color: var(--muted); }
+.item-buy { justify-self: start; }
+
 /* Competições, calendário e notícias */
 .comp-tag { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 3px 8px;
   border-radius: 99px; background: #26302c; color: #cfd8d2; white-space: nowrap; }
@@ -354,6 +425,16 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
   .dash-grid .col:last-child .panel + .panel { margin-top: 0; }
 }
 @media (max-width: 980px) { .menu { background: rgba(6, 9, 8, .82); } }
+@media (max-width: 860px) {
+  .hub-hero, .shop { grid-template-columns: 1fr; }
+  .hero-stage { min-height: 0; }
+  .hero-figure { height: 200px; }
+  .hero-info { padding: 0 18px 20px; }
+  .hero-info .btn.big { width: 100%; }
+  .hub-grid { grid-template-columns: 1fr; }
+  .shop-fitting { position: static; }
+  .fitting-figure { height: 200px; }
+}
 @media (max-width: 780px) {
   .screen { padding: 16px; }
   .dash-grid, .prep-grid, .create-layout, .styles { grid-template-columns: 1fr; }

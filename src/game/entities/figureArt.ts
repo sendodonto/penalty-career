@@ -1,12 +1,14 @@
 import Phaser from 'phaser';
 import { BOOT_COLORS, HAIR_COLORS, SKIN_TONES } from '../data/appearance';
+import { gearKey, type GearVisual } from '../data/shop';
 import type { Appearance, Team } from '../types';
 
 /** Cores do uniforme em CSS (#rrggbb). */
 export interface Kit { shirt: string; trim: string; shorts: string; socks: string }
 /** Textura de uma peça e o ponto de articulação (origem) dentro dela. */
 export interface Part { key: string; ox: number; oy: number }
-export interface FigureSkin { leg: Part; shorts: Part; torso: Part; arm: Part; head: Part }
+/** `armL` difere de `arm` só quando há braçadeira (vai no braço esquerdo). */
+export interface FigureSkin { leg: Part; shorts: Part; torso: Part; arm: Part; armL: Part; head: Part }
 /** back = visto de costas (cobrador na partida); front = de frente (goleiro, retratos). */
 export type View = 'back' | 'front';
 
@@ -40,9 +42,10 @@ interface PartArt { key: string; vb: VB; body: string }
 const LEG = 'M-7.2 0C-8 7-7.4 15-5.3 23.5C-6.8 27.5-6.9 33-4.4 44L4.4 44C6.9 33 6.8 27.5 5.3 23.5C7.4 15 8 7 7.2 0Z';
 const SOCK = 'M-6.6 29C-6.5 35-5 40-4.4 44.6L4.4 44.6C5 40 6.5 35 6.6 29Z';
 
-function legSvg(view: View, skin: string, kit: Kit, boot: string): string {
+function legSvg(view: View, skin: string, kit: Kit, boot: string, bootAccent: string | undefined, socksLow: boolean): string {
   const front = view === 'front';
-  const accent = accentOn(kit.trim === boot ? '#e9e6dc' : kit.trim, luma(boot) < 0.3);
+  const accent = bootAccent ?? accentOn(kit.trim === boot ? '#e9e6dc' : kit.trim, luma(boot) < 0.3);
+  const sockTop = socksLow ? 37 : 29;
   const bootArt = front
     ? `<path d="M-5 43.4L5 43.4L6.2 49.6Q6.4 52.6 3.2 52.8L-3.2 52.8Q-6.4 52.6-6.2 49.6Z" fill="${boot}" stroke="${OL}" stroke-width="1.1" stroke-linejoin="round"/>
        <path d="M-2 45.6L2 45.6M-2.2 47.4L2.2 47.4" stroke="${luma(boot) < 0.5 ? '#e9e6dc' : '#3a3a3a'}" stroke-width=".7" stroke-linecap="round"/>
@@ -53,8 +56,9 @@ function legSvg(view: View, skin: string, kit: Kit, boot: string): string {
   return `<defs><clipPath id="c"><path d="${LEG}"/></clipPath></defs>
     <path d="${LEG}" fill="${skin}"/>
     <g clip-path="url(#c)">
-      <path d="${SOCK}" fill="${kit.socks}"/>
-      <rect x="-9" y="30.4" width="18" height="2.4" fill="${kit.trim}"/>
+      ${socksLow ? `<path d="M-6.4 27C-6.3 31-5.8 34-5.4 37L5.4 37C5.8 34 6.3 31 6.4 27Z" fill="#f2efe6" opacity=".9"/>` : ''}
+      <path d="${SOCK.replace('M-6.6 29', `M-6.6 ${sockTop}`).replace('6.6 29Z', `6.6 ${sockTop}Z`)}" fill="${kit.socks}"/>
+      <rect x="-9" y="${sockTop + 1.4}" width="18" height="${socksLow ? 3.4 : 2.4}" fill="${socksLow ? dark(kit.socks, 0.25) : kit.trim}"/>
       <ellipse cx="${front ? 0 : -0.8}" cy="${front ? 37 : 30}" rx="${front ? 2.6 : 3}" ry="${front ? 5.5 : 4.5}" fill="#fff" opacity=".13"/>
       <path d="M1.2-3C3 8 2.6 20 1.6 30C1.4 36 1.4 40 1.4 45L9 45L9-3Z" fill="#000" opacity=".17"/>
     </g>
@@ -81,7 +85,7 @@ function shortsSvg(kit: Kit): string {
 // ---------- Tronco e pescoço (centro do tronco em 0,0) ----------
 const SHIRT = 'M-10-44.5Q0-42 10-44.5L16.5-41.5Q19-40 19-36L17-27C16.5-20 16.8-8 16.6 3.5Q0 6.2-16.6 3.5C-16.8-8-16.5-20-17-27L-19-36Q-19-40-16.5-41.5Z';
 
-function torsoSvg(view: View, keeper: boolean, skin: string, kit: Kit, number?: number, name?: string): string {
+function torsoSvg(view: View, keeper: boolean, skin: string, kit: Kit, number?: number, name?: string, necklace?: string): string {
   const back = view === 'back';
   const trimOnShirt = kit.trim === kit.shirt ? '#fff' : accentOn(kit.trim, luma(kit.shirt) < 0.3);
   const details = keeper
@@ -117,7 +121,10 @@ function torsoSvg(view: View, keeper: boolean, skin: string, kit: Kit, number?: 
       <path d="M-7-14Q-4-6-8 2M8-18Q5-10 9-2" fill="none" stroke="#000" stroke-opacity=".1" stroke-width=".9"/>
     </g>
     <path d="${SHIRT}" fill="none" stroke="${OL}" stroke-width="1.2" stroke-linejoin="round"/>
-    ${collar}${print}`;
+    ${collar}${print}
+    ${necklace ? (back
+      ? `<path d="M-4.6-46.8Q0-44.4 4.6-46.8" fill="none" stroke="${necklace}" stroke-width="1.1"/>`
+      : `<path d="M-4.8-47Q0-36.8 4.8-47" fill="none" stroke="${necklace}" stroke-width="1"/><circle cx="0" cy="-38.6" r="1.4" fill="${necklace}" stroke="${OL}" stroke-width=".4"/>`) : ''}`;
 }
 
 // ---------- Braço (ombro em 0,0, pendurado para baixo) ----------
@@ -127,7 +134,7 @@ const SLEEVE = 'M-5.6-3C-3.4-6.6 3.4-6.6 5.6-3L6.8 10.2Q0 12.2-6.8 10.2Z';
 const LONG_SLEEVE = 'M-5.8-3C-3.4-6.8 3.4-6.8 5.8-3L6.4 11C5.6 17 5.4 22 5 28.5L-5 28.5C-5.4 22-5.6 17-6.4 11Z';
 const GLOVE = 'M-5.8 27L5.8 27L6.8 33C7.2 40 5.2 44.6 0 45C-5.2 44.6-7.2 40-6.8 33Z';
 
-function armSvg(keeper: boolean, skin: string, kit: Kit): string {
+function armSvg(keeper: boolean, skin: string, kit: Kit, gear: GearVisual = {}, armband = false): string {
   if (keeper) {
     const strap = luma(kit.trim) < 0.3 ? '#2b2f36' : kit.trim;
     return `<defs><clipPath id="s"><path d="${LONG_SLEEVE}"/></clipPath><clipPath id="g"><path d="${GLOVE}"/></clipPath></defs>
@@ -146,16 +153,20 @@ function armSvg(keeper: boolean, skin: string, kit: Kit): string {
       <path d="M-2.6 38.4v4.4M0 38.6v5M2.6 38.4v4.4" stroke="#bdb8ab" stroke-width=".8" stroke-linecap="round"/>
       <path d="${GLOVE}" fill="none" stroke="${OL}" stroke-width="1.2" stroke-linejoin="round"/>`;
   }
+  const limb = gear.sleeves ?? skin;
+  const hand = gear.gloves ?? skin;
   return `<defs><clipPath id="a"><path d="${ARM}"/></clipPath><clipPath id="s"><path d="${SLEEVE}"/></clipPath></defs>
-    <path d="${ARM}" fill="${skin}"/>
+    <path d="${ARM}" fill="${limb}"/>
     <g clip-path="url(#a)"><path d="M1.2 0L9 0L9 36L1 36Z" fill="#000" opacity=".17"/></g>
     <path d="${ARM}" fill="none" stroke="${OL}" stroke-width="1.1" stroke-linejoin="round"/>
-    <path d="${HAND}" fill="${skin}" stroke="${OL}" stroke-width="1.1" stroke-linejoin="round"/>
-    <path d="M-3 33.6Q-4.3 35.6-2.3 36.6" fill="none" stroke="${dark(skin, 0.3)}" stroke-width=".7"/>
-    <path d="M-2.4 20.4Q0 21.4 2.4 20.4" fill="none" stroke="${dark(skin, 0.22)}" stroke-width=".7"/>
+    ${gear.wrist ? `<rect x="-3.9" y="27.6" width="7.8" height="3.6" rx="1" fill="${gear.wrist}" stroke="${OL}" stroke-width=".7"/>` : ''}
+    <path d="${HAND}" fill="${hand}" stroke="${OL}" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M-3 33.6Q-4.3 35.6-2.3 36.6" fill="none" stroke="${dark(hand, 0.3)}" stroke-width=".7"/>
+    <path d="M-2.4 20.4Q0 21.4 2.4 20.4" fill="none" stroke="${dark(limb, 0.22)}" stroke-width=".7"/>
     <path d="${SLEEVE}" fill="${kit.shirt}"/>
     <g clip-path="url(#s)">
       <rect x="-9" y="7.8" width="18" height="2.8" fill="${kit.trim}"/>
+      ${armband && gear.armband ? `<rect x="-9" y="2" width="18" height="4.4" fill="${gear.armband}"/><rect x="-9" y="2" width="18" height=".8" fill="${OL}" opacity=".35"/>` : ''}
       <path d="M1.4-8L9-8L9 14L1.6 14Z" fill="#000" opacity=".16"/>
     </g>
     <path d="${SLEEVE}" fill="none" stroke="${OL}" stroke-width="1.2" stroke-linejoin="round"/>`;
@@ -177,7 +188,7 @@ function afro(hair: string, cy: number): string {
 }
 
 /** 0 curto · 1 raspado · 2 black power · 3 rabo de cavalo · 4 moicano · 5 careca */
-function headSvg(view: View, skin: string, hair: string, style: number, trim: string): string {
+function headSvg(view: View, skin: string, hair: string, style: number, trim: string, headband?: string): string {
   const sh = dark(skin, 0.3);
   const shine = (c: string) => `<path d="M-6-12.6Q0-15.8 6-12.6" fill="none" stroke="${light(c, 0.35)}" stroke-width="1.3" stroke-linecap="round" opacity=".75"/>`;
   const ears = [-1, 1].map((s) => `<ellipse cx="${s * 10.5}" cy=".2" rx="2.5" ry="3.6" fill="${skin}" stroke="${OL}" stroke-width="1"/>
@@ -200,7 +211,7 @@ function headSvg(view: View, skin: string, hair: string, style: number, trim: st
         ${style === 3 ? `<path d="M-2.4 3C-3.6 9-2.6 15.6 0 19.4C2.6 15.6 3.6 9 2.4 3Z" fill="${hair}" stroke="${OL}" stroke-width="1.1"/>
           <rect x="-2.9" y="2.6" width="5.8" height="2.4" rx="1" fill="${accentOn(trim, true)}" stroke="${OL}" stroke-width=".6"/>` : ''}`;
     }
-    return `${ears}${face}${hairDraw}`;
+    return `${ears}${face}${hairDraw}${headband ? `<path d="M-11.4-3.6Q0-6.2 11.4-3.6L11.6-.4Q0-3 -11.6-.4Z" fill="${headband}" stroke="${OL}" stroke-width=".8"/>` : ''}`;
   }
 
   const fronts: Record<number, string> = {
@@ -220,26 +231,29 @@ function headSvg(view: View, skin: string, hair: string, style: number, trim: st
   return `${behind}${ears}${face}${eyes}
     <path d="M.3-.2Q1.6 3.8-.5 4.4" fill="none" stroke="${sh}" stroke-width=".9" stroke-linecap="round"/>
     <path d="M-2.9 7.3Q0 8.7 2.9 7.3" fill="none" stroke="${dark(skin, 0.45)}" stroke-width="1" stroke-linecap="round"/>
-    ${top}`;
+    ${top}${headband ? `<path d="M-11-9.4Q0-12.6 11-9.4L11.2-6.2Q0-9.4 -11.2-6.2Z" fill="${headband}" stroke="${OL}" stroke-width=".8"/>` : ''}`;
 }
 
 // ---------- Personagem completo ----------
 
-interface FigureOpts { number?: number; name?: string; keeper?: boolean }
+export interface FigureOpts { number?: number; name?: string; keeper?: boolean; gear?: GearVisual }
 
 function partsArt(view: View, look: Appearance, kit: Kit, o: FigureOpts) {
   const skin = SKIN_TONES[look.skin] ?? SKIN_TONES[0];
   const hair = HAIR_COLORS[look.hairColor] ?? HAIR_COLORS[0];
-  const boot = BOOT_COLORS[look.boots ?? 0] ?? BOOT_COLORS[0];
+  const g = o.gear ?? {};
+  const boot = g.boots?.color ?? BOOT_COLORS[look.boots ?? 0] ?? BOOT_COLORS[0];
   const keeper = o.keeper ?? view === 'front';
-  const k = (part: string, ...p: unknown[]) => `fig-${part}-${view}-${keeper ? 'gk' : 'pl'}-${p.join('-')}`;
+  const gk = keeper ? '' : gearKey(g);
+  const k = (part: string, ...p: unknown[]) => `fig-${part}-${view}-${keeper ? 'gk' : 'pl'}-${p.join('-')}-${gk}`;
   const part = (key: string, vb: VB, body: string): PartArt => ({ key, vb, body });
   return {
-    leg: part(k('leg', skin, kit.socks, kit.trim, boot), [-9, -3, 18, 59], legSvg(view, skin, kit, boot)),
+    leg: part(k('leg', skin, kit.socks, kit.trim, boot), [-9, -3, 18, 59], legSvg(view, skin, kit, boot, g.boots?.accent, !!g.socksLow)),
     shorts: part(k('shorts', kit.shorts, kit.trim), [-19, -2, 38, 24], shortsSvg(kit)),
-    torso: part(k('torso', skin, kit.shirt, kit.trim, o.number ?? '', o.name ?? ''), [-21, -52, 42, 59], torsoSvg(view, keeper, skin, kit, o.number, o.name)),
-    arm: part(k('arm', skin, kit.shirt, kit.trim), [-9, -7, 18, 53], armSvg(keeper, skin, kit)),
-    head: part(k('head', skin, hair, look.hair, kit.trim), [-20, -26, 40, 48], headSvg(view, skin, hair, look.hair, kit.trim)),
+    torso: part(k('torso', skin, kit.shirt, kit.trim, o.number ?? '', o.name ?? ''), [-21, -52, 42, 59], torsoSvg(view, keeper, skin, kit, o.number, o.name, keeper ? undefined : g.necklace)),
+    arm: part(k('arm', skin, kit.shirt, kit.trim), [-9, -7, 18, 53], armSvg(keeper, skin, kit, keeper ? {} : g)),
+    armL: part(k('armL', skin, kit.shirt, kit.trim), [-9, -7, 18, 53], armSvg(keeper, skin, kit, keeper ? {} : g, true)),
+    head: part(k('head', skin, hair, look.hair, kit.trim), [-20, -26, 40, 48], headSvg(view, skin, hair, look.hair, kit.trim, keeper ? undefined : g.headband)),
   };
 }
 
@@ -268,10 +282,10 @@ function texture(scene: Phaser.Scene, { key, vb, body }: PartArt): Promise<Part>
 }
 
 /** Monta (ou reaproveita) as texturas de um personagem para a partida. */
-export async function figureSkin(scene: Phaser.Scene, view: View, look: Appearance, kit: Kit, number?: number, name?: string): Promise<FigureSkin> {
-  const a = partsArt(view, look, kit, { number, name });
-  const [leg, shorts, torso, arm, head] = await Promise.all([a.leg, a.shorts, a.torso, a.arm, a.head].map((p) => texture(scene, p)));
-  return { leg, shorts, torso, arm, head };
+export async function figureSkin(scene: Phaser.Scene, view: View, look: Appearance, kit: Kit, o: FigureOpts = {}): Promise<FigureSkin> {
+  const a = partsArt(view, look, kit, o);
+  const [leg, shorts, torso, arm, armL, head] = await Promise.all([a.leg, a.shorts, a.torso, a.arm, a.armL, a.head].map((p) => texture(scene, p)));
+  return { leg, shorts, torso, arm, armL, head };
 }
 
 let uid = 0;
@@ -295,5 +309,5 @@ export function figureMarkup(view: View, look: Appearance, kit: Kit, o: FigureOp
     + place(a.shorts, 0, -62, `${id}c`)
     + place(a.torso, 0, -56, `${id}d`)
     + place(a.head, 0, -115, `${id}e`, false, 0.9)
-    + place(a.arm, -18.5, -94.5, `${id}f`) + place(a.arm, 18.5, -94.5, `${id}g`, true);
+    + place(view === 'back' ? a.armL : a.arm, -18.5, -94.5, `${id}f`) + place(view === 'back' ? a.arm : a.armL, 18.5, -94.5, `${id}g`, true);
 }
